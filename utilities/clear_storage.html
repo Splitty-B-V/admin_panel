@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear Storage</title>
+</head>
+<body>
+    <script>
+        // Clear restaurant name from localStorage
+        localStorage.removeItem('restaurant_restaurantName');
+        
+        // Also clear authentication to force re-login with new name
+        localStorage.removeItem('restaurant_isAuthenticated');
+        localStorage.removeItem('restaurant_userId');
+        localStorage.removeItem('restaurant_userEmail');
+        localStorage.removeItem('restaurant_userName');
+        localStorage.removeItem('restaurant_userRole');
+        localStorage.removeItem('restaurant_restaurantId');
+        
+        console.log('Storage cleared');
+        alert('Storage cleared! Please refresh the admin panel and login again.');
+    </script>
+    <h1>Storage cleared!</h1>
+    <p>Please go back to the admin panel and refresh the page.</p>
+</body>
+</html>

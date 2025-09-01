@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup Authentication - Restaurant Admin</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            max-width: 600px;
+            width: 90%;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 1rem;
+            font-size: 1.8rem;
+            text-align: center;
+        }
+        .status {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        button {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 1rem;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        button:hover {
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+        .credentials-box {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 1.5rem 0;
+            border: 2px dashed #dee2e6;
+        }
+        .credential-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 0.8rem 0;
+            padding: 0.8rem;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+        .credential-item strong {
+            color: #495057;
+        }
+        .credential-item span {
+            color: #10b981;
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+        }
+        .note {
+            background: #fef3c7;
+            border: 1px solid #fcd34d;
+            color: #92400e;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+        .link-button {
+            display: inline-block;
+            background: #3b82f6;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            text-decoration: none;
+            margin-top: 1rem;
+            transition: background 0.3s;
+        }
+        .link-button:hover {
+            background: #2563eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Restaurant Admin Setup</h1>
+        
+        <div class="status info" id="status">
+            Welcome! Click the button below to set up your admin credentials.
+        </div>
+
+        <div class="credentials-box">
+            <h3 style="margin-top: 0; text-align: center; color: #495057;">Your Login Credentials</h3>
+            <div class="credential-item">
+                <strong>Email:</strong>
+                <span>milad@splitty.nl</span>
+            </div>
+            <div class="credential-item">
+                <strong>Password:</strong>
+                <span>Splitty2025!</span>
+            </div>
+            <div class="credential-item">
+                <strong>Name:</strong>
+                <span>Milad Azizi</span>
+            </div>
+            <div class="credential-item">
+                <strong>Role:</strong>
+                <span>Manager</span>
+            </div>
+        </div>
+
+        <button onclick="setupAndLogin()">Setup Credentials & Auto-Login</button>
+
+        <div class="note">
+            <strong>Note:</strong> This will set up your credentials and automatically log you in to the Restaurant Admin Panel.
+        </div>
+    </div>
+
+    <script>
+        function setupAndLogin() {
+            try {
+                // Step 1: Set up credentials
+                let credentials = [];
+                
+                const newCredential = {
+                    id: Date.now().toString(),
+                    email: 'milad@splitty.nl',
+                    password: 'Splitty2025!',
+                    name: 'Milad Azizi',
+                    role: 'Manager',
+                    status: 'active',
+                    phone: '+31 6 12345678',
+                    since: new Date().toISOString()
+                };
+                
+                credentials = [newCredential];
+                localStorage.setItem('restaurant_credentials', JSON.stringify(credentials));
+                
+                // Also add to team members for backward compatibility
+                localStorage.setItem('restaurant_team_members', JSON.stringify([newCredential]));
+                
+                // Step 2: Set authentication data directly
+                const userData = {
+                    id: Date.now().toString(),
+                    email: 'milad@splitty.nl',
+                    name: 'Milad Azizi',
+                    role: 'manager',
+                    restaurantId: '1',
+                    restaurantName: 'Limon Food & Drinks'
+                };
+                
+                const expiryDate = new Date();
+                expiryDate.setDate(expiryDate.getDate() + 7);
+                
+                localStorage.setItem('restaurant_isAuthenticated', 'true');
+                localStorage.setItem('restaurant_userId', userData.id);
+                localStorage.setItem('restaurant_userEmail', userData.email);
+                localStorage.setItem('restaurant_userName', userData.name);
+                localStorage.setItem('restaurant_userRole', userData.role);
+                localStorage.setItem('restaurant_restaurantId', userData.restaurantId);
+                localStorage.setItem('restaurant_restaurantName', userData.restaurantName);
+                localStorage.setItem('restaurant_authExpiry', expiryDate.toISOString());
+                
+                // Update status
+                document.getElementById('status').className = 'status success';
+                document.getElementById('status').innerHTML = '✅ Success! Credentials set up and logged in. Redirecting to dashboard...';
+                
+                // Redirect to dashboard
+                setTimeout(() => {
+                    window.location.href = '/dashboard';
+                }, 1500);
+                
+            } catch (error) {
+                document.getElementById('status').className = 'status error';
+                document.getElementById('status').innerHTML = '❌ Error: ' + error.message;
+                console.error('Error:', error);
+            }
+        }
+        
+        // Check if already logged in
+        window.onload = function() {
+            const isAuthenticated = localStorage.getItem('restaurant_isAuthenticated');
+            const userEmail = localStorage.getItem('restaurant_userEmail');
+            
+            if (isAuthenticated === 'true' && userEmail === 'milad@splitty.nl') {
+                document.getElementById('status').innerHTML = '✅ You are already logged in! <a href="/dashboard" class="link-button">Go to Dashboard</a>';
+                document.getElementById('status').className = 'status success';
+            }
+        }
+    </script>
+</body>
+</html>

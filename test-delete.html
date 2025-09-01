@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Delete Functionality</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-primary {
+            background-color: #10b981;
+            color: white;
+        }
+        .btn-danger {
+            background-color: #ef4444;
+            color: white;
+        }
+        .btn-warning {
+            background-color: #f59e0b;
+            color: white;
+        }
+        .status {
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+            background-color: #f3f4f6;
+        }
+        .team-list {
+            list-style: none;
+            padding: 0;
+        }
+        .team-member {
+            padding: 10px;
+            margin: 5px 0;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .actions {
+            display: flex;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Team Member Delete Functionality</h1>
+    
+    <div class="status">
+        <h2>Current Team Members:</h2>
+        <ul id="teamList" class="team-list"></ul>
+    </div>
+    
+    <div>
+        <h2>Test Actions:</h2>
+        <button class="btn-primary" onclick="loadTeamMembers()">Refresh Team List</button>
+        <button class="btn-warning" onclick="addTestMember()">Add Test Member</button>
+        <button class="btn-danger" onclick="clearAllData()">Clear All Data</button>
+        <button class="btn-primary" onclick="resetToDefaults()">Reset to Default Team</button>
+    </div>
+    
+    <div class="status">
+        <h3>Console Log:</h3>
+        <pre id="console"></pre>
+    </div>
+
+    <script>
+        const log = (message) => {
+            const consoleEl = document.getElementById('console');
+            consoleEl.textContent += message + '\n';
+            console.log(message);
+        };
+
+        const loadTeamMembers = () => {
+            const teamMembers = JSON.parse(localStorage.getItem('restaurant_team_members') || '[]');
+            const credentials = JSON.parse(localStorage.getItem('restaurant_credentials') || '[]');
+            
+            log(`Loaded ${teamMembers.length} team members`);
+            log(`Loaded ${credentials.length} credentials`);
+            
+            const teamList = document.getElementById('teamList');
+            teamList.innerHTML = '';
+            
+            teamMembers.forEach(member => {
+                const li = document.createElement('li');
+                li.className = 'team-member';
+                li.innerHTML = `
+                    <div>
+                        <strong>${member.name}</strong> - ${member.email} - ${member.role} - ${member.status || 'active'}
+                    </div>
+                    <div class="actions">
+                        <button class="btn-warning" onclick="toggleStatus('${member.id}')">Toggle Status</button>
+                        <button class="btn-danger" onclick="deleteMember('${member.id}', '${member.name}')">Delete</button>
+                    </div>
+                `;
+                teamList.appendChild(li);
+            });
+        };
+
+        const deleteMember = (id, name) => {
+            if (confirm(`Delete ${name}?`)) {
+                const teamMembers = JSON.parse(localStorage.getItem('restaurant_team_members') || '[]');
+                const updatedMembers = teamMembers.filter(m => m.id != id);
+                localStorage.setItem('restaurant_team_members', JSON.stringify(updatedMembers));
+                
+                log(`Deleted member: ${name}`);
+                loadTeamMembers();
+            }
+        };
+
+        const toggleStatus = (id) => {
+            const teamMembers = JSON.parse(localStorage.getItem('restaurant_team_members') || '[]');
+            const member = teamMembers.find(m => m.id == id);
+            if (member) {
+                member.status = member.status === 'active' ? 'inactive' : 'active';
+                localStorage.setItem('restaurant_team_members', JSON.stringify(teamMembers));
+                log(`Toggled status for: ${member.name} to ${member.status}`);
+                loadTeamMembers();
+            }
+        };
+
+        const addTestMember = () => {
+            const teamMembers = JSON.parse(localStorage.getItem('restaurant_team_members') || '[]');
+            const newMember = {
+                id: Date.now(),
+                name: `Test User ${Date.now()}`,
+                email: `test${Date.now()}@restaurant.nl`,
+                phone: '+31 6 99999999',
+                role: 'Medewerker',
+                status: 'active',
+                startDate: new Date().toISOString().split('T')[0],
+                hoursThisWeek: 0,
+                tipsThisMonth: 0,
+                rating: 0,
+                avatar: null,
+                password: 'test123'
+            };
+            teamMembers.push(newMember);
+            localStorage.setItem('restaurant_team_members', JSON.stringify(teamMembers));
+            
+            // Also add to credentials
+            const credentials = JSON.parse(localStorage.getItem('restaurant_credentials') || '[]');
+            credentials.push({
+                email: newMember.email,
+                password: newMember.password,
+                name: newMember.name,
+                role: 'staff'
+            });
+            localStorage.setItem('restaurant_credentials', JSON.stringify(credentials));
+            
+            log(`Added test member: ${newMember.name}`);
+            loadTeamMembers();
+        };
+
+        const clearAllData = () => {
+            if (confirm('Clear all team data?')) {
+                localStorage.removeItem('restaurant_team_members');
+                localStorage.removeItem('restaurant_credentials');
+                log('Cleared all data');
+                loadTeamMembers();
+            }
+        };
+
+        const resetToDefaults = () => {
+            const defaultTeam = [
+                {
+                    id: 1,
+                    name: 'Emma van Dijk',
+                    email: 'emma@restaurant.nl',
+                    phone: '+31 6 12345678',
+                    role: 'Medewerker',
+                    status: 'active',
+                    startDate: '2023-03-15',
+                    hoursThisWeek: 32,
+                    tipsThisMonth: 245.50,
+                    rating: 4.8,
+                    avatar: null,
+                },
+                {
+                    id: 2,
+                    name: 'Lucas Bakker',
+                    email: 'lucas@restaurant.nl',
+                    phone: '+31 6 23456789',
+                    role: 'Medewerker',
+                    status: 'active',
+                    startDate: '2023-06-01',
+                    hoursThisWeek: 28,
+                    tipsThisMonth: 189.00,
+                    rating: 4.6,
+                    avatar: null,
+                },
+                {
+                    id: 3,
+                    name: 'Sophie de Jong',
+                    email: 'sophie@restaurant.nl',
+                    phone: '+31 6 34567890',
+                    role: 'Medewerker',
+                    status: 'active',
+                    startDate: '2024-01-10',
+                    hoursThisWeek: 36,
+                    tipsThisMonth: 312.75,
+                    rating: 4.9,
+                    avatar: null,
+                },
+                {
+                    id: 4,
+                    name: 'Tom Jansen',
+                    email: 'tom@restaurant.nl',
+                    phone: '+31 6 45678901',
+                    role: 'Medewerker',
+                    status: 'inactive',
+                    startDate: '2022-11-20',
+                    hoursThisWeek: 0,
+                    tipsThisMonth: 0,
+                    rating: 4.5,
+                    avatar: null,
+                },
+                {
+                    id: 5,
+                    name: 'Lisa Vermeer',
+                    email: 'lisa@restaurant.nl',
+                    phone: '+31 6 56789012',
+                    role: 'Manager',
+                    status: 'active',
+                    startDate: '2022-01-15',
+                    hoursThisWeek: 40,
+                    tipsThisMonth: 0,
+                    rating: 5.0,
+                    avatar: null,
+                }
+            ];
+            
+            localStorage.setItem('restaurant_team_members', JSON.stringify(defaultTeam));
+            log('Reset to default team');
+            loadTeamMembers();
+        };
+
+        // Load on page load
+        window.onload = loadTeamMembers;
+    </script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+{
+  "name": "restaurantadmin-nextjs",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "cleanup": "rm -rf .next .turbo *.log"
+  },
+  "dependencies": {
+    "@heroicons/react": "^2.0.18",
+    "jspdf": "^3.0.1",
+    "next": "14.0.0",
+    "qrcode.react": "^4.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "recharts": "^3.1.2"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.14",
+    "eslint": "^8.54.0",
+    "eslint-config-next": "14.0.0",
+    "postcss": "^8.4.24",
+    "tailwindcss": "^3.3.0"
+  }
+}

@@ -9,7 +9,7 @@
   /* Disable overscroll bounce effect */
   html {
     height: 100%;
-    overflow: hidden;
+    overflow: auto;
     overscroll-behavior: none;
   }
   
@@ -18,7 +18,7 @@
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     height: 100%;
     margin: 0;
-    overflow: hidden;
+    overflow: auto;
     overscroll-behavior: none;
   }
   

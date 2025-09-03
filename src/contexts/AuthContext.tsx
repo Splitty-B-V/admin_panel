@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userData: User = {
         id: Date.now().toString(),
         email: email,
-        name: 'Restaurant Manager',
+        name: 'Anatolii Test',
         role: 'restaurant_admin',
         restaurantId: '17',
         restaurantName: 'Anatolii Restaurant'

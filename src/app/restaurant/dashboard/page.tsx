@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Layout from '@/components/restaurant/Layout'
 import DateFilterExact from '@/components/restaurant/DateFilterExact'
 import { useAuth } from '@/contexts/AuthContext'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { useRecentPayments } from '@/hooks/usePayments'
 import { QRCodeSVG } from 'qrcode.react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import jsPDF from 'jspdf'
@@ -28,12 +29,45 @@ import {
     StarIcon,
     ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline'
-import {getRecentPayments} from "@/lib/api";
 
-interface Table {
+// Type definitions
+interface PaymentDetail {
+    id: string
+    guestName: string
+    amount: number
+    method: string
+    status: 'completed' | 'failed'
+    time: Date
+    items: string[]
+    failureReason?: string
+}
+
+interface OrderItem {
+    name: string
+    price: number
+    paid: boolean
+}
+
+interface GuestOrder {
+    guest: string
+    items: OrderItem[]
+}
+
+interface CustomPayment {
+    guest: string
+    amount: number
+    paid: boolean
+}
+
+interface SimpleOrder {
+    name: string
+    price: number
+}
+
+interface TableData {
     num: number
     guests: number
-    status: 'Bezet' | 'Wacht' | 'Vrij'
+    status: 'Bezet' | 'Vrij' | 'Wacht'
     amount?: number
     paid?: number
     duration?: string
@@ -43,25 +77,47 @@ interface Table {
     section?: string
     createdAt?: Date
     orderNumber?: string
+    payments?: PaymentDetail[]
+    orders?: GuestOrder[] | SimpleOrder[]
+    sharedItems?: OrderItem[]
+    customPayments?: CustomPayment[]
+    paidGuests?: number
     lastOrder?: number
     freed?: string
     total?: number
-    orders?: any[]
-    sharedItems?: any[]
-    customPayments?: any[]
-    paidGuests?: number
-    payments?: any[]
 }
 
-interface Payment {
-    id: number
-    table: number
-    amount: number
-    tip: number
-    fee: number
-    status: 'paid' | 'failed'
-    time: Date
-    method: string
+interface MockData {
+    revenue: string
+    orders: number
+    tips: string
+    avgPayment: string
+    growth: string
+    newCustomers: number
+    returningCustomers: number
+    peakHour: string
+    avgTableTime: string
+}
+
+interface ChartDataPoint {
+    time: string
+    omzet: number
+    betalingen: number
+    fooien: number
+}
+
+interface DateRange {
+    start: string
+    end?: string
+}
+
+interface User {
+    name?: string
+}
+
+interface UserData {
+    name: string
+    restaurantName: string
 }
 
 interface Review {
@@ -74,25 +130,40 @@ interface Review {
     verified: boolean
 }
 
-interface StatsData {
-    revenue: string
-    orders: number
-    tips: string
-    avgPayment: string
-    growth: string
-    newCustomers: number
-    returningCustomers: number
-    peakHour: string
-    avgTableTime: string
+interface RecentOrder {
+    id: string
+    table: string
+    amount: number
+    time: string
+    status: string
+    method: string
+    guests: number
 }
 
-interface UserData {
-    name: string
-    restaurantName: string
+interface RecentPayment {
+    id: number
+    table: number
+    amount: number
+    tip: number
+    fee: number
+    status: 'completed' | 'failed'
+    time: Date
+    method: string
+}
+
+interface StatsCardProps {
+    icon: React.ComponentType<{ className?: string }>
+    title: string
+    value: string
+    change?: string
+    subtitle?: string
+    onClick?: () => void
+    isClickable?: boolean
+    isActive?: boolean
 }
 
 // Comprehensive table data with detailed orders
-const generateTableData = (): Table[] => {
+const generateTableData = (): TableData[] => {
     return [
         {
             num: 5,
@@ -163,7 +234,7 @@ const generateTableData = (): Table[] => {
                         { name: 'Pasta Carbonara', price: 15.50, paid: false },
                         { name: 'Spa Rood', price: 3.00, paid: true }
                     ]}
-            ],
+            ] as GuestOrder[],
             sharedItems: [
                 { name: 'Broodplank', price: 8.50, paid: false },
                 { name: 'Nachos', price: 12.50, paid: false }
@@ -187,7 +258,7 @@ const generateTableData = (): Table[] => {
                 { name: 'Vis van de Dag', price: 24.50 },
                 { name: 'Fles Rode Wijn', price: 32.50 },
                 { name: 'Tiramisu', price: 8.50 },
-            ],
+            ] as SimpleOrder[],
             paidGuests: 1 // 1 out of 2 has paid
         },
         {
@@ -209,7 +280,7 @@ const generateTableData = (): Table[] => {
                 { name: 'Kindermenu (2x)', price: 25.00 },
                 { name: 'Drankenpakket', price: 45.00 },
                 { name: 'Dessert Plateau', price: 35.00 },
-            ],
+            ] as SimpleOrder[],
             customPayments: [
                 { guest: 'Gast 1', amount: 40.00, paid: false },
                 { guest: 'Gast 2', amount: 30.47, paid: true },
@@ -261,7 +332,7 @@ const generateTableData = (): Table[] => {
                         { name: 'Kip Saté', price: 19.50, paid: false },
                         { name: 'Jus d\'Orange', price: 4.00, paid: false }
                     ]}
-            ],
+            ] as GuestOrder[],
             sharedItems: [
                 { name: 'Voorgerecht Mix', price: 18.50, paid: false }
             ]
@@ -283,7 +354,7 @@ const generateTableData = (): Table[] => {
                 { name: 'Lunch Special (2x)', price: 29.00 },
                 { name: 'Koffie (2x)', price: 5.00 },
                 { name: 'Appeltaart (2x)', price: 11.20 }
-            ],
+            ] as SimpleOrder[],
             paidGuests: 0 // Nobody has paid yet
         },
         {
@@ -328,7 +399,7 @@ const generateTableData = (): Table[] => {
                         { name: 'Pizza Quattro', price: 18.50, paid: true },
                         { name: 'Limoncello', price: 5.50, paid: false }
                     ]}
-            ],
+            ] as GuestOrder[],
             sharedItems: [
                 { name: 'Antipasti Plank', price: 22.50, paid: false },
                 { name: 'Kaasplateau', price: 18.50, paid: false }
@@ -360,7 +431,7 @@ const generateTableData = (): Table[] => {
                 { name: 'Sangria Kan', price: 28.50 },
                 { name: 'Churros', price: 12.50 },
                 { name: 'Crème Brûlée', price: 12.40 }
-            ],
+            ] as SimpleOrder[],
             customPayments: [
                 { guest: 'Gast 1', amount: 35.00, paid: true },
                 { guest: 'Gast 2', amount: 33.00, paid: false },
@@ -385,7 +456,7 @@ const generateTableData = (): Table[] => {
                 { name: 'Wijnproeverij', price: 65.00 },
                 { name: 'Hoofdgerechten Mix', price: 89.50 },
                 { name: 'Dessert Selectie', price: 32.50 }
-            ],
+            ] as SimpleOrder[],
             paidGuests: 2 // 2 out of 6 have paid
         },
         {
@@ -410,7 +481,7 @@ const generateTableData = (): Table[] => {
                         { name: 'Salade Niçoise', price: 16.50, paid: false },
                         { name: 'Verse Jus', price: 5.50, paid: false }
                     ]}
-            ],
+            ] as GuestOrder[],
             sharedItems: [
                 { name: 'Bitterballen', price: 8.50, paid: false },
                 { name: 'Kaasplank Klein', price: 14.50, paid: false }
@@ -436,20 +507,20 @@ const generateTableData = (): Table[] => {
                 { name: 'Edamame', price: 8.50 },
                 { name: 'Mochi Ice (5x)', price: 22.50 },
                 { name: 'Groene Thee', price: 15.00 }
-            ],
+            ] as SimpleOrder[],
             paidGuests: 1 // 1 out of 5 has paid
         }
     ]
 }
 
 // Mock data generators based on date filter
-const generateMockData = (filter: string, customDateRange: any = null): StatsData => {
+const generateMockData = (filter: string, customDateRange: DateRange | null = null): MockData => {
     // Splitty launched on Friday, August 1st, 2025
     const launchDate = new Date(2025, 7, 1) // August 1, 2025 (Friday)
     const today = new Date() // Current date
 
     // Daily revenue data (varied by day of week)
-    const dailyData: { [key: string]: { revenue: number; orders: number; tips: number } } = {
+    const dailyData: Record<string, { revenue: number; orders: number; tips: number }> = {
         // Friday Aug 1 - Launch day (lower due to first day)
         '2025-08-01': { revenue: 1850.40, orders: 32, tips: 145.20 },
         // Saturday Aug 2 - CLOSED
@@ -483,13 +554,13 @@ const generateMockData = (filter: string, customDateRange: any = null): StatsDat
     }
 
     // Helper function to check if date is weekend
-    const isWeekend = (date: Date) => {
+    const isWeekend = (date: Date): boolean => {
         const day = date.getDay()
         return day === 0 || day === 6 // Sunday = 0, Saturday = 6
     }
 
     // Helper function to get date string
-    const getDateString = (date: Date) => {
+    const getDateString = (date: Date): string => {
         const year = date.getFullYear()
         const month = String(date.getMonth() + 1).padStart(2, '0')
         const day = String(date.getDate()).padStart(2, '0')
@@ -611,11 +682,11 @@ const generateMockData = (filter: string, customDateRange: any = null): StatsDat
 }
 
 // Generate chart data based on date filter
-const generateChartData = (filter: string, customDateRange: any = null, t: any) => {
+const generateChartData = (filter: string, customDateRange: DateRange | null = null): ChartDataPoint[] => {
     const launchDate = new Date(2025, 7, 1) // August 1, 2025
 
     // Hourly patterns for a typical day (when open)
-    const hourlyPattern: { [key: string]: { factor: number } } = {
+    const hourlyPattern: Record<string, { factor: number }> = {
         '11:00': { factor: 0.3 },  // Lunch start
         '12:00': { factor: 0.8 },  // Lunch peak
         '13:00': { factor: 0.9 },  // Lunch peak
@@ -660,6 +731,8 @@ const generateChartData = (filter: string, customDateRange: any = null, t: any) 
             fooien: Math.round(yesterdayTips * factor / 6)
         }))
     } else if (filter === 'last7days') {
+        // Last 7 days - Aug 9-15
+        // Note: t function would need to be passed as parameter in real implementation
         const weekDaysShort = ['Zo', 'Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za']
         return [
             { time: `${weekDaysShort[6]} 9`, omzet: 0, betalingen: 0, fooien: 0 }, // Saturday - CLOSED
@@ -680,10 +753,10 @@ const generateChartData = (filter: string, customDateRange: any = null, t: any) 
     } else if (customDateRange) {
         // Custom date range - aggregate by day
         const startDate = new Date(Math.max(new Date(customDateRange.start).getTime(), launchDate.getTime()))
-        const endDate = new Date(customDateRange.end)
-        const data: any[] = []
+        const endDate = new Date(customDateRange.end || customDateRange.start)
+        const data: ChartDataPoint[] = []
 
-        const dailyValues: { [key: string]: { omzet: number; betalingen: number; fooien: number } } = {
+        const dailyValues: Record<string, { omzet: number; betalingen: number; fooien: number }> = {
             '2025-08-01': { omzet: 1850.40, betalingen: 32, fooien: 145.20 },
             '2025-08-02': { omzet: 0, betalingen: 0, fooien: 0 },
             '2025-08-03': { omzet: 0, betalingen: 0, fooien: 0 },
@@ -716,44 +789,12 @@ const generateChartData = (filter: string, customDateRange: any = null, t: any) 
         return data
     } else {
         // Default - show last 7 days
-        return generateChartData('last7days', null, t)
+        return generateChartData('last7days')
     }
 }
 
-// Generate recent orders based on date filter
-const generateRecentOrders = (filter: string) => {
-    return [
-        { id: 'ORD-001', table: 'T5', amount: 47.50, time: '20:45', status: 'completed', method: 'Splitty', guests: 2 },
-        { id: 'ORD-002', table: 'T12', amount: 89.00, time: '20:30', status: 'completed', method: 'Splitty', guests: 4 },
-        { id: 'ORD-003', table: 'T3', amount: 156.75, time: '20:15', status: 'pending', method: 'Splitty', guests: 6 },
-        { id: 'ORD-004', table: 'T8', amount: 34.50, time: '20:00', status: 'completed', method: 'Pin', guests: 2 },
-        { id: 'ORD-005', table: 'T1', amount: 178.60, time: '19:45', status: 'completed', method: 'Splitty', guests: 5 },
-        { id: 'ORD-006', table: 'T15', amount: 92.30, time: '19:30', status: 'failed', method: 'Splitty', guests: 3 },
-        { id: 'ORD-007', table: 'T9', amount: 267.90, time: '19:15', status: 'completed', method: 'Splitty', guests: 8 },
-        { id: 'ORD-008', table: 'T21', amount: 145.20, time: '19:00', status: 'completed', method: 'Cash', guests: 4 },
-    ]
-}
-
 // Stats Card Component
-const StatsCard = ({
-                       icon: Icon,
-                       title,
-                       value,
-                       change,
-                       subtitle,
-                       onClick,
-                       isClickable = false,
-                       isActive = false
-                   }: {
-    icon: any
-    title: string
-    value: string
-    change?: string
-    subtitle?: string
-    onClick?: () => void
-    isClickable?: boolean
-    isActive?: boolean
-}) => (
+const StatsCard: React.FC<StatsCardProps> = ({ icon: Icon, title, value, change, subtitle, onClick, isClickable = false, isActive = false }) => (
     <div
         className={`bg-white rounded-lg sm:rounded-xl border p-2.5 xs:p-3 sm:p-4 md:p-6 transition-all duration-200 ${
             isClickable ? 'cursor-pointer hover:shadow-lg hover:border-green-400' : 'hover:shadow-lg'
@@ -791,40 +832,21 @@ const StatsCard = ({
     </div>
 )
 
-export default function Dashboard() {
+const Dashboard: React.FC = () => {
     const { user } = useAuth()
     const router = useRouter()
-    const { t, locale } = useLanguage()
-    const [dateFilter, setDateFilter] = useState('today')
-    const [showDatePicker, setShowDatePicker] = useState(false)
-    const [customDateRange, setCustomDateRange] = useState<any>(null)
-    const [filteredData, setFilteredData] = useState<StatsData>(generateMockData('today'))
-    const [filteredOrders, setFilteredOrders] = useState(generateRecentOrders('today'))
-    const [chartData, setChartData] = useState(generateChartData('today', null, t))
-    const [greeting, setGreeting] = useState('')
+    const { locale, setLocale, t } = useLanguage()
+    const [dateFilter, setDateFilter] = useState<string>('today')
+    const [showDatePicker, setShowDatePicker] = useState<boolean>(false)
+    const [customDateRange, setCustomDateRange] = useState<DateRange | null>(null)
+    const [filteredData, setFilteredData] = useState<MockData>(generateMockData('today'))
+    // const [filteredOrders, setFilteredOrders] = useState<RecentOrder[]>(generateRecentOrders('today'))
+    const [chartData, setChartData] = useState<ChartDataPoint[]>(generateChartData('today'))
+    const [greeting, setGreeting] = useState<string>('')
     const [userData, setUserData] = useState<UserData | null>(null)
-    const [tables, setTables] = useState<Table[]>([])
-    const [selectedMetric, setSelectedMetric] = useState('all') // 'all', 'revenue', 'payments', 'tips', 'reviews'
-
-    const [payments, setPayments] = useState<Payment[]>([])
-    const [paymentsLoading, setPaymentsLoading] = useState(true)
-
-    // Load payments from API
-    useEffect(() => {
-        const fetchPayments = async () => {
-            try {
-                setPaymentsLoading(true)
-                const data = await getRecentPayments(6)
-                setPayments(data.payments || [])
-            } catch (error) {
-                console.error('Error loading payments:', error)
-            } finally {
-                setPaymentsLoading(false)
-            }
-        }
-
-        fetchPayments()
-    }, [])
+    const [tables, setTables] = useState<TableData[]>([])
+    const [selectedMetric, setSelectedMetric] = useState<'all' | 'revenue' | 'payments' | 'tips' | 'reviews'>('all')
+    const { payments, loading: paymentsLoading } = useRecentPayments(6)
 
     // Mock reviews data
     const mockReviews: Review[] = [
@@ -894,7 +916,7 @@ export default function Dashboard() {
     ]
 
     // Helper function to get date filter label
-    const getDateFilterLabel = () => {
+    const getDateFilterLabel = (): string => {
         if (customDateRange && customDateRange.start) {
             const start = new Date(customDateRange.start)
             const end = new Date(customDateRange.end || customDateRange.start)
@@ -917,12 +939,12 @@ export default function Dashboard() {
         }
     }
 
-    useEffect(() => {
-        // Update data when filter changes
-        setFilteredData(generateMockData(dateFilter, customDateRange))
-        setFilteredOrders(generateRecentOrders(dateFilter))
-        setChartData(generateChartData(dateFilter, customDateRange, t))
-    }, [dateFilter, customDateRange, t])
+    // useEffect(() => {
+    //     // Update data when filter changes
+    //     setFilteredData(generateMockData(dateFilter, customDateRange))
+    //     setFilteredOrders(generateRecentOrders(dateFilter))
+    //     setChartData(generateChartData(dateFilter, customDateRange))
+    // }, [dateFilter, customDateRange])
 
     useEffect(() => {
         // Always use fresh table data with correct amounts
@@ -948,26 +970,32 @@ export default function Dashboard() {
         if (user) {
             setUserData({
                 name: user.name || 'Manager',
-                restaurantName: 'Test Restaurant'
+                restaurantName: 'Limon Food & Drinks'
             })
         }
     }, [locale, t, user])
 
-    const handleTableClick = (table: Table) => {
+    const handleTableClick = (table: TableData): void => {
         if (table.status !== 'Vrij') {
             router.push(`/order/${table.num}`)
         }
     }
 
     // Export to PDF function
-    const exportToPDF = () => {
+    const exportToPDF = (): void => {
         const doc = new jsPDF()
         const pageHeight = doc.internal.pageSize.height
         const pageWidth = doc.internal.pageSize.width
 
         // Generate mock transaction data based on filter
         const generateTransactions = () => {
-            const transactions: any[] = []
+            const transactions: Array<{
+                id: string
+                amount: number
+                tip: number
+                time: string
+                date: string
+            }> = []
             const baseTime = new Date()
             const numTransactions = parseInt(filteredData.orders.toString()) || 50
 
@@ -1010,7 +1038,7 @@ export default function Dashboard() {
         // Restaurant info
         doc.setFontSize(14)
         doc.setFont(undefined, 'bold')
-        doc.text(userData?.restaurantName || 'Test Restaurant', pageWidth / 2, yPosition, { align: 'center' })
+        doc.text(userData?.restaurantName || 'Restaurant', pageWidth / 2, yPosition, { align: 'center' })
         yPosition += 8
 
         doc.setFontSize(11)
@@ -1196,16 +1224,16 @@ export default function Dashboard() {
         doc.save(fileName)
     }
 
-    const getSplitModeLabel = (mode?: string) => {
+    const getSplitModeLabel = (mode: string): string => {
         switch(mode) {
             case 'items': return 'Betaal voor items'
             case 'equal': return 'Gelijk verdelen'
             case 'custom': return 'Aangepast bedrag'
-            default: return mode || ''
+            default: return mode
         }
     }
 
-    const getSplitModeIcon = (mode?: string) => {
+    const getSplitModeIcon = (mode: string): React.ComponentType<{ className?: string }> => {
         switch(mode) {
             case 'items': return ReceiptPercentIcon
             case 'equal': return UsersIcon
@@ -1214,13 +1242,17 @@ export default function Dashboard() {
         }
     }
 
+    const recentPayments: RecentPayment[] = [
+        { id: 1078, table: 5, amount: 46.00, tip: 3.50, fee: 0.70, status: 'paid', time: new Date(Date.now() - 10 * 60 * 1000), method: 'iDEAL' },
+        { id: 1077, table: 12, amount: 89.50, tip: 4.50, fee: 0.70, status: 'paid', time: new Date(Date.now() - 25 * 60 * 1000), method: 'Apple Pay' },
+        { id: 1076, table: 3, amount: 34.75, tip: 2.25, fee: 0.70, status: 'paid', time: new Date(Date.now() - 45 * 60 * 1000), method: 'Credit Card' },
+        { id: 1075, table: 9, amount: 156.20, tip: 11.20, fee: 0.70, status: 'paid', time: new Date(Date.now() - 60 * 60 * 1000), method: 'iDEAL' },
+        { id: 1074, table: 1, amount: 22.50, tip: 0, fee: 0.70, status: 'failed', time: new Date(Date.now() - 75 * 60 * 1000), method: 'Credit Card' },
+        { id: 1073, table: 15, amount: 78.90, tip: 5.90, fee: 0.70, status: 'paid', time: new Date(Date.now() - 90 * 60 * 1000), method: 'Google Pay' },
+    ]
+
     return (
         <Layout>
-            {/*<div style={{ height: '200vh', background: 'red' }}>*/}
-            {/*    Тест прокрутки - если видите этот блок и можете прокрутить до красного фона внизу, то Layout исправлен*/}
-            {/*</div>*/}
-
-
             <div className="p-3 sm:p-4 md:p-6">
                 {/* Header */}
                 <div className="mb-4 sm:mb-6 md:mb-8">
@@ -1236,7 +1268,7 @@ export default function Dashboard() {
                 <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 sm:gap-4">
                     <DateFilterExact
                         selectedFilter={dateFilter}
-                        onFilterChange={(filter, dateRange) => {
+                        onFilterChange={(filter: string, dateRange?: DateRange) => {
                             setDateFilter(filter)
                             setCustomDateRange(dateRange || null)
                         }}
@@ -1530,7 +1562,7 @@ export default function Dashboard() {
                                                 yAxisId="left"
                                                 stroke="#9ca3af"
                                                 style={{ fontSize: '11px' }}
-                                                tickFormatter={(value) => `€${value}`}
+                                                tickFormatter={(value: number) => `€${value}`}
                                                 tickLine={false}
                                                 axisLine={{ stroke: '#e5e7eb' }}
                                             />
@@ -1551,7 +1583,7 @@ export default function Dashboard() {
                                                     padding: '10px',
                                                     boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)'
                                                 }}
-                                                formatter={(value: any, name: any) => {
+                                                formatter={(value: number, name: string) => {
                                                     const formattedName = name === 'omzet' ? 'Omzet' :
                                                         name === 'betalingen' ? 'Betalingen' :
                                                             'Fooien'
@@ -1647,7 +1679,7 @@ export default function Dashboard() {
                     {tables.filter(table => table.status === 'Bezet' || table.status === 'Wacht').length > 0 ? (
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                             {tables.filter(table => table.status === 'Bezet' || table.status === 'Wacht').map((table) => {
-                                const paymentProgress = table.status !== 'Vrij' && table.amount && table.paid ? (table.paid / table.amount) * 100 : 0
+                                const paymentProgress = table.status !== 'Vrij' && table.amount && table.paid !== undefined ? (table.paid / table.amount) * 100 : 0
                                 return (
                                     <div
                                         key={table.num}
@@ -1704,10 +1736,10 @@ export default function Dashboard() {
                                                             <span className="text-xs text-gray-500">{t('dashboard.activeTables.total')}</span>
                                                             <span className="text-sm font-bold text-gray-900">€{table.amount?.toFixed(2)}</span>
                                                         </div>
-                                                        {(table.paid || 0) > 0 && (
+                                                        {table.paid !== undefined && table.paid > 0 && (
                                                             <div className="flex justify-between items-baseline mt-1">
                                                                 <span className="text-xs text-gray-500">{t('dashboard.activeTables.paid')}</span>
-                                                                <span className="text-sm font-semibold text-green-600">€{table.paid?.toFixed(2)}</span>
+                                                                <span className="text-sm font-semibold text-green-600">€{table.paid.toFixed(2)}</span>
                                                             </div>
                                                         )}
                                                         <div className="flex justify-between items-baseline mt-0.5 xs:mt-1 pt-0.5 xs:pt-1 border-t border-gray-100">
@@ -1755,7 +1787,7 @@ export default function Dashboard() {
                         <div className="flex items-center justify-between">
                             <h2 className="text-sm xs:text-base sm:text-lg font-semibold text-gray-900">{t('dashboard.recentPayments.title')}</h2>
                             <button
-                                onClick={() => router.push('/payment-history')}
+                                onClick={() => router.push('/restaurant/payment-history')}
                                 className="text-xs sm:text-sm text-green-600 hover:text-green-700 font-medium hidden xs:block"
                             >
                                 {t('dashboard.recentPayments.viewAll')} →
@@ -1777,9 +1809,20 @@ export default function Dashboard() {
                             <tbody className="bg-white divide-y divide-gray-100">
                             {paymentsLoading ? (
                                 <tr>
-                                    <td colSpan={6} className="text-center py-4 text-gray-500">Loading payments...</td>
+                                    <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">
+                                        <div className="flex items-center justify-center">
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600 mr-2"></div>
+                                            Loading payments...
+                                        </div>
+                                    </td>
                                 </tr>
-                            ) : payments.length > 0 ? (
+                            ) : payments.length === 0 ? (
+                                <tr>
+                                    <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">
+                                        No recent payments found
+                                    </td>
+                                </tr>
+                            ) : (
                                 payments.map((payment) => (
                                     <tr key={payment.id} className="border-b border-gray-100 hover:bg-gray-50">
                                         <td className="px-2 xs:px-3 sm:px-4 py-1.5 xs:py-2 sm:py-2.5 whitespace-nowrap text-[11px] xs:text-xs sm:text-sm font-medium text-gray-900">
@@ -1792,65 +1835,90 @@ export default function Dashboard() {
                                             <div>
                                                 <p className="text-[11px] xs:text-xs sm:text-sm font-medium text-gray-900">€{payment.amount.toFixed(2)}</p>
                                                 {payment.tip > 0 && (
-                                                    <p className="text-[10px] xs:text-xs text-gray-500 hidden xs:block">Tip: €{payment.tip.toFixed(2)}</p>
+                                                    <p className="text-[10px] xs:text-xs text-gray-500 hidden xs:block">{t('dashboard.recentPayments.tip')}: €{payment.tip.toFixed(2)}</p>
                                                 )}
                                             </div>
                                         </td>
                                         <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 whitespace-nowrap">
-          <span className={`inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-medium ${
-              payment.status === 'completed' ? 'bg-green-100 text-green-800' :
-                  payment.status === 'failed' ? 'bg-red-100 text-red-800' :
-                      'bg-yellow-100 text-yellow-800'
-          }`}>
-            <span className="hidden sm:inline">{payment.status === 'completed' ? 'Paid' : payment.status === 'failed' ? 'Failed' : 'Pending'}</span>
-            <span className="sm:hidden">{payment.status === 'completed' ? '✓' : payment.status === 'failed' ? '✕' : '?'}</span>
-          </span>
+                            <span className={`inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-medium ${
+                                payment.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                                <div className={`w-1.5 h-1.5 rounded-full mr-1 sm:mr-1.5 hidden sm:inline-block ${
+                                    payment.status === 'completed' ? 'bg-green-500' : 'bg-red-500'
+                                }`} />
+                                <span className="hidden sm:inline">{payment.status === 'completed' ? t('dashboard.recentPayments.paid') : t('dashboard.recentPayments.failed')}</span>
+                                <span className="sm:hidden">{payment.status === 'completed' ? '✓' : '✕'}</span>
+                            </span>
                                         </td>
-                                        <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 whitespace-nowrap text-xs text-gray-500 hidden sm:table-cell">
-                                            {new Date(payment.timestamp).toLocaleDateString('nl-NL', {
-                                                day: 'numeric',
+                                        <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 whitespace-nowrap text-xs text-gray-500 hidden sm:table-cell" suppressHydrationWarning>
+                                            {typeof window !== 'undefined' ? new Date(payment.timestamp).toLocaleDateString('nl-NL', {
                                                 month: 'short',
+                                                day: 'numeric',
                                                 year: 'numeric',
                                                 hour: '2-digit',
                                                 minute: '2-digit'
-                                            })}
+                                            }) : '-'}
                                         </td>
                                         <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 whitespace-nowrap text-sm hidden md:table-cell">
                                             <div className="flex gap-1.5 items-center">
                                                 <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        router.push(`/order/${payment.tableNumber}`)
-                                                    }}
+                                                    onClick={() => router.push(`/order/${payment.orderNumber}`)}
                                                     className="font-medium text-xs text-green-600 hover:text-green-700"
                                                 >
-                                                    Order
+                                                    {t('dashboard.recentPayments.order')}
                                                 </button>
                                                 <span className="text-gray-300 text-xs">|</span>
                                                 <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        router.push(`/payment/${payment.id}`)
-                                                    }}
+                                                    onClick={() => router.push(`/payment/${payment.id}`)}
                                                     className="font-medium text-xs text-green-600 hover:text-green-700"
                                                 >
-                                                    Payment
+                                                    {t('dashboard.recentPayments.payment')}
                                                 </button>
                                             </div>
                                         </td>
                                     </tr>
                                 ))
-                            ) : (
-                                <tr>
-                                    <td colSpan={6} className="text-center py-4 text-gray-500">No payments found</td>
-                                </tr>
                             )}
                             </tbody>
                         </table>
                     </div>
                 </div>
 
+                {/* Table Detail Modal - Removed, now using dedicated page */}
+                {false && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                            {/* Modal Header */}
+                            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+                                <div className="flex items-center space-x-4">
+                                    <h2 className="text-xl font-bold text-gray-900">Tafel {/* selectedTable.num */}</h2>
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium`}>
+                    {/* selectedTable.status */}
+                  </span>
+                                    <span className="flex items-center space-x-1 text-sm text-gray-600">
+                    <QrCodeIcon className="h-4 w-4" />
+                    <span>QR Gescand</span>
+                  </span>
+                                </div>
+                                <button
+                                    onClick={() => {/* setShowTableModal(false) */}}
+                                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                                >
+                                    <XMarkIcon className="h-5 w-5 text-gray-500" />
+                                </button>
+                            </div>
+
+                            {/* Modal Content */}
+                            <div className="p-6">
+                                {/* Additional modal content would go here */}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
             </div>
         </Layout>
     )
 }
+
+export default Dashboard

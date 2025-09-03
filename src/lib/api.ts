@@ -69,14 +69,34 @@ export async function apiLoginRestaurant(
 }
 
 
-export async function getRecentPayments(limit = 10, offset = 0, tableNumber?: number) {
+export async function getRecentPayments(
+    limit = 10,
+    offset = 0,
+    tableNumber?: number,
+    searchPattern?: string,
+    status?: string,
+    dateFrom?: string,
+    dateTo?: string
+) {
     const params = new URLSearchParams({
         limit: limit.toString(),
         offset: offset.toString(),
     })
 
-    if (tableNumber) {
-        params.append('table_number', tableNumber.toString())
+    if (searchPattern?.trim()) {
+        params.append('search_pattern', searchPattern.trim())
+    }
+
+    if (status && status !== 'all') {
+        params.append('status', status)
+    }
+
+    if (dateFrom) {
+        params.append('date_from', dateFrom)
+    }
+
+    if (dateTo) {
+        params.append('date_to', dateTo)
     }
 
     return apiRequest(`/restaurant_admin/payments?${params}`)

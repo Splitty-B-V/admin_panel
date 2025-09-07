@@ -57,6 +57,10 @@ export default function PaymentHistory() {
 
     const ITEMS_PER_PAGE = 30
 
+    useEffect(() => {
+        document.title = 'Payments History - Splitty'
+    }, [])
+
     // Debounce search
     useEffect(() => {
         const timer = setTimeout(() => {

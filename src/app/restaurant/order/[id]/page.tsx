@@ -29,55 +29,44 @@ import {
     PrinterIcon,
     GiftIcon,
 } from '@heroicons/react/24/outline'
+import {getOrderDetail} from "@/lib/api";
 
 // TypeScript interfaces
+interface OrderDetailResponse {
+    id: number
+    table_number: number
+    status: string
+    order_number: string
+    total_amount: number
+    paid_amount: number
+    remaining_amount: number
+    created_at: string
+    pos_created_at?: string
+    customer_name?: string
+    covers?: number
+    items: OrderItem[]
+    payments: Payment[]
+}
+
 interface OrderItem {
     name: string
     price: number
-    quantity?: number
-    paid?: boolean
+    quantity: number
+    paid: boolean
 }
 
 interface Payment {
     id: string
-    transactionId: string
+    transaction_id: string
     amount: number
     tip: number
     fee: number
-    method: 'iDEAL' | 'Apple Pay' | 'Google Pay' | 'Credit Card'
+    method: string
     status: 'completed' | 'failed' | 'pending'
-    time: Date
+    time: string
+    split_mode: 'items' | 'equal' | 'custom' | 'whole'
     items: string[]
-    splitMode: 'items' | 'equal' | 'custom' | 'whole'
-    guestsPaid: string
-    failureReason?: string
-}
-
-interface Guest {
-    guest: string
-    items: OrderItem[]
-}
-
-interface Order {
-    num: number
-    status: 'Vrij' | 'Bezet' | 'Wacht' | 'Gereserveerd'
-    guests?: number
-    duration?: string
-    startTime?: string
-    amount?: number
-    paid?: number
-    orderNumber?: string
-    orders?: OrderItem[] | Guest[]
-    items?: OrderItem[]
-    payments?: Payment[]
-    splitMode?: 'items' | 'equal' | 'custom' | 'whole'
-}
-
-interface ItemGroup {
-    name: string
-    price: number
-    count: number
-    paid?: boolean
+    failure_reason?: string
 }
 
 const OrderDetail: React.FC = () => {
@@ -85,145 +74,63 @@ const OrderDetail: React.FC = () => {
     const params = useParams()
     const id = params?.id as string
     const { t } = useLanguage()
-    const [order, setOrder] = useState<Order | null>(null)
+    const [orderData, setOrderData] = useState<OrderDetailResponse | null>(null)
     const [loading, setLoading] = useState<boolean>(true)
+    const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
-        if (id) {
-            // Get table data from localStorage
-            const tablesData = JSON.parse(localStorage.getItem('restaurant_tables') || '[]') as Order[]
-            const table = tablesData.find((t: Order) => t.num === parseInt(id))
+        document.title = 'Order - Splitty'
+    }, [])
 
-            if (table) {
-                // Add mock payments for demonstration
-                if (table.num === 5 && table.paid && table.paid > 0) {
-                    table.payments = [
-                        {
-                            id: 'SPL-2024-1078',
-                            transactionId: 'TRX-1078-2024',
-                            amount: 22.00,
-                            tip: 1.50,
-                            fee: 0.70,
-                            method: 'iDEAL',
-                            status: 'completed',
-                            time: new Date(Date.now() - 35 * 60 * 1000),
-                            items: ['Burger Deluxe', 'Cola'],
-                            splitMode: 'items',
-                            guestsPaid: '1/4'
-                        },
-                        {
-                            id: 'SPL-2024-1077',
-                            transactionId: 'TRX-1077-2024',
-                            amount: 14.50,
-                            tip: 0,
-                            fee: 0.70,
-                            method: 'Apple Pay',
-                            status: 'failed',
-                            time: new Date(Date.now() - 28 * 60 * 1000),
-                            items: ['Caesar Salad'],
-                            failureReason: 'insufficientBalance',
-                            splitMode: 'items',
-                            guestsPaid: '2/4'
-                        },
-                        {
-                            id: 'SPL-2024-1076',
-                            transactionId: 'TRX-1076-2024',
-                            amount: 14.50,
-                            tip: 1.00,
-                            fee: 0.70,
-                            method: 'iDEAL',
-                            status: 'completed',
-                            time: new Date(Date.now() - 25 * 60 * 1000),
-                            items: ['Caesar Salad'],
-                            splitMode: 'items',
-                            guestsPaid: '3/4'
-                        },
-                        {
-                            id: 'SPL-2024-1075',
-                            transactionId: 'TRX-1075-2024',
-                            amount: 9.50,
-                            tip: 1.00,
-                            fee: 0.70,
-                            method: 'Google Pay',
-                            status: 'completed',
-                            time: new Date(Date.now() - 10 * 60 * 1000),
-                            items: ['Witte Wijn', 'Spa Rood'],
-                            splitMode: 'items',
-                            guestsPaid: '4/4'
-                        }
-                    ]
-                } else if (table.paid && table.paid > 0) {
-                    // Generate generic payments for other tables
-                    table.payments = [
-                        {
-                            id: `SPL-2024-${(1070 + parseInt(id)).toString()}`,
-                            transactionId: `TRX-${(1070 + parseInt(id)).toString()}-2024`,
-                            amount: table.paid * 0.6,
-                            tip: table.paid * 0.05,
-                            fee: 0.70,
-                            method: 'iDEAL',
-                            status: 'completed',
-                            time: new Date(Date.now() - 20 * 60 * 1000),
-                            items: ['Diverse items'],
-                            splitMode: 'equal',
-                            guestsPaid: `${table.guests || 2}/${table.guests || 2}`
-                        },
-                        {
-                            id: `SPL-2024-${(1060 + parseInt(id)).toString()}`,
-                            transactionId: `TRX-${(1060 + parseInt(id)).toString()}-2024`,
-                            amount: table.paid * 0.4,
-                            tip: table.paid * 0.03,
-                            fee: 0.70,
-                            method: 'Credit Card',
-                            status: 'completed',
-                            time: new Date(Date.now() - 15 * 60 * 1000),
-                            items: ['Diverse items'],
-                            splitMode: 'items',
-                            guestsPaid: `1/${table.guests || 2}`
-                        }
-                    ]
-                }
-                setOrder(table)
+    useEffect(() => {
+        const fetchOrderDetail = async () => {
+            if (!id) return
+
+            try {
+                setLoading(true)
+                setError(null)
+
+                const data = await getOrderDetail(id)
+                setOrderData(data)
+
+            } catch (error) {
+                console.error('Error fetching order detail:', error)
+                setError('Failed to load order details')
+            } finally {
+                setLoading(false)
             }
-            setLoading(false)
         }
+
+        fetchOrderDetail()
     }, [id])
 
-    const getStatusColor = (status: Order['status']): string => {
+    // Вычисляемые значения на основе реальных данных
+    const orderTotal = orderData?.total_amount || 0
+    const paidAmount = orderData?.paid_amount || 0
+    const remainingAmount = orderData?.remaining_amount || 0
+    const paymentProgress = orderTotal > 0 ? (paidAmount / orderTotal) * 100 : 0
+
+    // Calculate tips and fees from real payments
+    const totalTips = orderData?.payments?.reduce((sum, p) => sum + (p.tip || 0), 0) || 0
+    const totalFees = orderData?.payments?.reduce((sum, p) => sum + (p.fee || 0), 0) || 0
+
+    const getStatusColor = (status: string): string => {
         switch(status) {
-            case 'Vrij': return 'bg-gray-100 text-gray-800 border-gray-200'
-            case 'Bezet': return 'bg-orange-100 text-orange-800 border-orange-200'
-            case 'Wacht': return 'bg-yellow-100 text-yellow-800 border-yellow-200'
-            case 'Gereserveerd': return 'bg-blue-100 text-blue-800 border-blue-200'
+            case 'free': return 'bg-gray-100 text-gray-800 border-gray-200'
+            case 'occupied': return 'bg-orange-100 text-orange-800 border-orange-200'
+            case 'waiting': return 'bg-yellow-100 text-yellow-800 border-yellow-200'
+            case 'reserved': return 'bg-blue-100 text-blue-800 border-blue-200'
             default: return 'bg-gray-100 text-gray-800 border-gray-200'
         }
     }
 
-    const getPaymentMethodIcon = (method: Payment['method']): string => {
-        switch(method) {
-            case 'iDEAL': return '🏦'
-            case 'Apple Pay': return '🍎'
-            case 'Google Pay': return '🔍'
-            case 'Credit Card': return '💳'
+    const getPaymentMethodIcon = (method: string): string => {
+        switch(method?.toLowerCase()) {
+            case 'ideal': return '🏦'
+            case 'apple_pay': return '🍎'
+            case 'google_pay': return '🔍'
+            case 'card': return '💳'
             default: return '💰'
-        }
-    }
-
-    const getSplitModeLabel = (mode: Payment['splitMode']): string => {
-        switch(mode) {
-            case 'items': return t('order.splitModes.paidForItems')
-            case 'equal': return t('order.splitModes.splitEqually')
-            case 'custom': return t('order.splitModes.customAmountPaid')
-            default: return t('order.splitModes.default')
-        }
-    }
-
-    const getSplitModeIcon = (mode: Payment['splitMode']) => {
-        switch(mode) {
-            case 'items': return ReceiptPercentIcon
-            case 'equal': return UsersIcon
-            case 'custom': return BanknotesIcon
-            default: return CreditCardIcon
         }
     }
 
@@ -233,34 +140,48 @@ const OrderDetail: React.FC = () => {
                 <div className="min-h-screen flex items-center justify-center">
                     <div className="text-center">
                         <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
-                        <p className="mt-4 text-gray-600">Order laden...</p>
+                        <p className="mt-4 text-gray-600">Loading order...</p>
                     </div>
                 </div>
             </Layout>
         )
     }
 
-    if (!order || order.status === 'Vrij') {
+    if (error || !orderData) {
+        return (
+            <Layout>
+                <div className="p-6">
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <p className="text-red-800">{error || `Order ${id} not found`}</p>
+                        <button
+                            onClick={() => router.push('/restaurant/dashboard')}
+                            className="mt-2 text-red-600 hover:text-red-700 underline"
+                        >
+                            Back to Dashboard
+                        </button>
+                    </div>
+                </div>
+            </Layout>
+        )
+    }
+
+    if (orderData.status === 'free') {
         return (
             <Layout>
                 <div className="p-6">
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                        <p className="text-yellow-800">Geen actieve bestelling voor tafel {id}</p>
+                        <p className="text-yellow-800">No active order for table {orderData.table_number}</p>
+                        <button
+                            onClick={() => router.push('/restaurant/dashboard')}
+                            className="mt-2 text-yellow-600 hover:text-yellow-700 underline"
+                        >
+                            Back to Dashboard
+                        </button>
                     </div>
                 </div>
             </Layout>
         )
     }
-
-    // Calculate totals
-    const orderTotal = order.amount || 0
-    const paidAmount = order.paid || 0
-    const remainingAmount = orderTotal - paidAmount
-    const paymentProgress = orderTotal > 0 ? (paidAmount / orderTotal) * 100 : 0
-
-    // Calculate tips from payments
-    const totalTips = order.payments?.reduce((sum, p) => sum + (p.tip || 0), 0) || 0
-    const totalFees = order.payments?.reduce((sum, p) => sum + (p.fee || 0), 0) || 0
 
     return (
         <Layout>
@@ -268,7 +189,7 @@ const OrderDetail: React.FC = () => {
                 {/* Header */}
                 <div className="mb-6">
                     <button
-                        onClick={() => router.push('/dashboard')}
+                        onClick={() => router.push('/restaurant/dashboard')}
                         className="flex items-center text-gray-600 hover:text-gray-900 transition-colors mb-4"
                     >
                         <ArrowLeftIcon className="h-5 w-5 mr-2" />
@@ -278,7 +199,9 @@ const OrderDetail: React.FC = () => {
                     <div className="flex items-center justify-between">
                         <div>
                             <h1 className="text-2xl font-bold text-gray-900">{t('order.title')}</h1>
-                            <p className="text-gray-600 mt-1">{t('order.table')} {order.num} - {t('order.orderNumber')}{order.orderNumber || `2024${order.num.toString().padStart(4, '0')}`}</p>
+                            <p className="text-gray-600 mt-1">
+                                {t('order.table')} {orderData.table_number} - {t('order.orderNumber')}{orderData.order_number}
+                            </p>
                         </div>
                         <div className="flex items-center gap-3">
                             <button
@@ -288,10 +211,12 @@ const OrderDetail: React.FC = () => {
                                 <ArrowPathIcon className="h-4 w-4 mr-2" />
                                 {t('order.refresh')}
                             </button>
-                            <div className={`px-4 py-2 rounded-full text-sm font-medium border ${getStatusColor(order.status)}`}>
-                                {order.status === 'Bezet' && <ClockIcon className="h-4 w-4 inline mr-1" />}
-                                {order.status === 'Wacht' && <ExclamationCircleIcon className="h-4 w-4 inline mr-1" />}
-                                {order.status === 'Bezet' ? t('order.tableStatus.occupied') : order.status === 'Wacht' ? t('order.tableStatus.waiting') : t('order.tableStatus.free')}
+                            <div className={`px-4 py-2 rounded-full text-sm font-medium border ${getStatusColor(orderData.status)}`}>
+                                {orderData.status === 'occupied' && <ClockIcon className="h-4 w-4 inline mr-1" />}
+                                {orderData.status === 'waiting' && <ExclamationCircleIcon className="h-4 w-4 inline mr-1" />}
+                                {orderData.status === 'occupied' ? t('order.tableStatus.occupied') :
+                                    orderData.status === 'waiting' ? t('order.tableStatus.waiting') :
+                                        t('order.tableStatus.free')}
                             </div>
                         </div>
                     </div>
@@ -311,30 +236,6 @@ const OrderDetail: React.FC = () => {
                             </div>
                             <div className="p-6">
                                 <div className="space-y-4">
-                                    {/* Split Mode */}
-                                    {order.payments && order.payments.length > 0 && order.payments[0].splitMode && (
-                                        <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-                                            <div className="flex items-center">
-                                                {(() => {
-                                                    const mode = order.payments[0].splitMode
-                                                    const Icon = getSplitModeIcon(mode)
-                                                    return <Icon className="h-5 w-5 text-gray-400 mr-3" />
-                                                })()}
-                                                <span className="text-gray-700">{t('order.partiallyPaid')}</span>
-                                            </div>
-                                            <span className="text-lg font-semibold text-gray-900">
-                        {(() => {
-                            const mode = order.payments[0].splitMode
-                            if (mode === 'items') return t('order.splitModes.paidForItems')
-                            if (mode === 'equal') return t('order.splitModes.splitEqually')
-                            if (mode === 'custom') return t('order.splitModes.customAmountPaid')
-                            if (mode === 'whole') return t('order.splitModes.wholeBill')
-                            return t('order.splitModes.none')
-                        })()}
-                      </span>
-                                        </div>
-                                    )}
-
                                     {/* Order Total */}
                                     <div className="flex justify-between items-center pb-3 border-b border-gray-100">
                                         <div className="flex items-center">
@@ -351,14 +252,14 @@ const OrderDetail: React.FC = () => {
                                             <span className="text-gray-700">{t('order.paidAmount')}</span>
                                             {paidAmount > 0 && (
                                                 <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-                          {Math.round(paymentProgress)}%
-                        </span>
+                                                    {Math.round(paymentProgress)}%
+                                                </span>
                                             )}
                                         </div>
                                         <span className="text-lg font-semibold text-green-600">€{paidAmount.toFixed(2)}</span>
                                     </div>
 
-                                    {/* Tips Collected */}
+                                    {/* Tips */}
                                     {totalTips > 0 && (
                                         <div className="flex justify-between items-center pb-3 border-b border-gray-100">
                                             <div className="flex items-center">
@@ -399,7 +300,7 @@ const OrderDetail: React.FC = () => {
                         </div>
 
                         {/* Order Items */}
-                        {(order.orders || order.items) && (
+                        {orderData.items && orderData.items.length > 0 && (
                             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                                 <div className="px-6 py-4 border-b border-gray-200">
                                     <h2 className="text-lg font-semibold text-gray-900 flex items-center">
@@ -409,50 +310,22 @@ const OrderDetail: React.FC = () => {
                                 </div>
                                 <div className="p-6">
                                     <div className="space-y-3">
-                                        {(() => {
-                                            // Group items for display
-                                            const itemGroups: Record<string, ItemGroup> = {}
-
-                                            if (order.splitMode === 'items' && order.orders && Array.isArray(order.orders) && order.orders[0] && 'guest' in order.orders[0]) {
-                                                // Handle Guest[] type
-                                                const guestOrders = order.orders as Guest[]
-                                                guestOrders.forEach(guest => {
-                                                    guest.items?.forEach(item => {
-                                                        if (!itemGroups[item.name]) {
-                                                            itemGroups[item.name] = { name: item.name, price: item.price, count: 0, paid: item.paid }
-                                                        }
-                                                        itemGroups[item.name].count++
-                                                    })
-                                                })
-                                            } else if (order.orders && Array.isArray(order.orders) && order.orders.length > 0) {
-                                                // Handle OrderItem[] type
-                                                const itemOrders = order.orders as OrderItem[]
-                                                itemOrders.forEach(item => {
-                                                    const name = item.name || item.toString()
-                                                    if (!itemGroups[name]) {
-                                                        itemGroups[name] = { name, price: item.price || 0, count: 0 }
-                                                    }
-                                                    itemGroups[name].count++
-                                                })
-                                            }
-
-                                            return Object.values(itemGroups).map((item, index) => (
-                                                <div key={index} className="flex justify-between items-center py-2">
-                                                    <div className="flex items-center">
-                            <span className="text-gray-700">
-                              {item.count > 1 && <span className="font-medium mr-2">{item.count}x</span>}
-                                {item.name}
-                            </span>
-                                                        {item.paid && (
-                                                            <CheckCircleIcon className="h-4 w-4 text-green-500 ml-2" />
-                                                        )}
-                                                    </div>
-                                                    <span className="font-medium text-gray-900">
-                            €{(item.price * item.count).toFixed(2)}
-                          </span>
+                                        {orderData.items.map((item, index) => (
+                                            <div key={index} className="flex justify-between items-center py-2">
+                                                <div className="flex items-center">
+                                                    <span className="text-gray-700">
+                                                        {item.quantity > 1 && <span className="font-medium mr-2">{item.quantity}x</span>}
+                                                        {item.name}
+                                                    </span>
+                                                    {item.paid && (
+                                                        <CheckCircleIcon className="h-4 w-4 text-green-500 ml-2" />
+                                                    )}
                                                 </div>
-                                            ))
-                                        })()}
+                                                <span className="font-medium text-gray-900">
+                                                    €{(item.price * item.quantity).toFixed(2)}
+                                                </span>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
                             </div>
@@ -467,9 +340,9 @@ const OrderDetail: React.FC = () => {
                                 </h2>
                             </div>
                             <div className="p-6">
-                                {order.payments && order.payments.length > 0 ? (
+                                {orderData.payments && orderData.payments.length > 0 ? (
                                     <div className="space-y-4">
-                                        {order.payments.map((payment, index) => (
+                                        {orderData.payments.map((payment, index) => (
                                             <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow bg-white">
                                                 <div className="flex items-center justify-between">
                                                     <div className="flex-1">
@@ -480,33 +353,20 @@ const OrderDetail: React.FC = () => {
                                                                     payment.status === 'pending' ? 'bg-yellow-50 text-yellow-700' :
                                                                         'bg-red-50 text-red-700'
                                                             }`}>
-                                {payment.status === 'completed' ? t('order.completed') :
-                                    payment.status === 'pending' ? t('order.pending') : t('order.failed')}
-                              </span>
+                                                                {payment.status === 'completed' ? t('order.completed') :
+                                                                    payment.status === 'pending' ? t('order.pending') :
+                                                                        t('order.failed')}
+                                                            </span>
                                                         </div>
 
                                                         <div className="flex items-center justify-between text-sm">
                                                             <div className="flex items-center space-x-4 text-gray-500">
-                                <span>{payment.time.toLocaleString('nl-NL', {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                    day: 'numeric',
-                                    month: 'short'
-                                })}</span>
-                                                                {payment.splitMode && (
-                                                                    <span className="flex items-center">
-                                    {(() => {
-                                        const Icon = getSplitModeIcon(payment.splitMode)
-                                        return <Icon className="h-3.5 w-3.5 mr-1" />
-                                    })()}
-                                                                        <span className="text-xs">
-                                      {payment.splitMode === 'items' && t('order.splitModes.itemsPaid')}
-                                                                            {payment.splitMode === 'equal' && t('order.splitModes.equalSplit')}
-                                                                            {payment.splitMode === 'custom' && t('order.splitModes.customAmount')}
-                                                                            {payment.splitMode === 'whole' && t('order.splitModes.wholeBill')}
-                                    </span>
-                                  </span>
-                                                                )}
+                                                                <span>{new Date(payment.time).toLocaleString('en-US', {
+                                                                    hour: '2-digit',
+                                                                    minute: '2-digit',
+                                                                    day: 'numeric',
+                                                                    month: 'short'
+                                                                })}</span>
                                                             </div>
 
                                                             <div className="text-right">
@@ -518,11 +378,11 @@ const OrderDetail: React.FC = () => {
                                                         </div>
 
                                                         <div className="mt-3 flex items-center justify-between">
-                              <span className="text-xs text-gray-400">
-                                {getPaymentMethodIcon(payment.method)} {payment.method}
-                              </span>
+                                                            <span className="text-xs text-gray-400">
+                                                                {getPaymentMethodIcon(payment.method)} {payment.method}
+                                                            </span>
                                                             <button
-                                                                onClick={() => router.push(`/payment/${payment.id.split('-').pop()}`)}
+                                                                onClick={() => router.push(`/restaurant/payment/${payment.id.split('-').pop()}`)}
                                                                 className="text-xs text-green-600 hover:text-green-700 font-medium"
                                                             >
                                                                 {t('order.viewDetails')} →
@@ -530,8 +390,8 @@ const OrderDetail: React.FC = () => {
                                                         </div>
                                                     </div>
                                                 </div>
-                                                {payment.failureReason && (
-                                                    <p className="mt-2 text-xs text-red-600">{payment.failureReason === 'insufficientBalance' ? t('order.insufficientBalance') : payment.failureReason}</p>
+                                                {payment.failure_reason && (
+                                                    <p className="mt-2 text-xs text-red-600">{payment.failure_reason}</p>
                                                 )}
                                             </div>
                                         ))}
@@ -539,7 +399,7 @@ const OrderDetail: React.FC = () => {
                                 ) : (
                                     <div className="text-center py-8">
                                         <CreditCardIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                                        <p className="text-gray-500">Nog geen betalingen ontvangen</p>
+                                        <p className="text-gray-500">No payments received yet</p>
                                     </div>
                                 )}
                             </div>
@@ -561,48 +421,23 @@ const OrderDetail: React.FC = () => {
                                     <p className="text-sm text-gray-500 mb-1">{t('order.orderNumberLabel')}</p>
                                     <p className="font-semibold text-gray-900 flex items-center">
                                         <HashtagIcon className="h-4 w-4 mr-1 text-gray-600" />
-                                        {order.orderNumber || `2024${order.num.toString().padStart(4, '0')}`}
+                                        {orderData.order_number}
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-sm text-gray-500 mb-1">Tafel</p>
+                                    <p className="text-sm text-gray-500 mb-1">Table</p>
                                     <p className="font-semibold text-gray-900 flex items-center">
                                         <BuildingStorefrontIcon className="h-4 w-4 mr-1 text-gray-600" />
-                                        Tafel {order.num}
+                                        Table {orderData.table_number}
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-sm text-gray-500 mb-1">{t('order.tableTime')}</p>
-                                    <p className="font-semibold text-gray-900 flex items-center">
-                                        <ClockIcon className="h-4 w-4 mr-1 text-gray-600" />
-                                        {order.duration || '45m'}
-                                    </p>
-                                </div>
-                                <div>
-                                    <p className="text-sm text-gray-500 mb-1">{t('order.startTime')}</p>
+                                    <p className="text-sm text-gray-500 mb-1">Created</p>
                                     <p className="font-semibold text-gray-900 flex items-center">
                                         <CalendarIcon className="h-4 w-4 mr-1 text-gray-600" />
-                                        {order.startTime || '19:45'}
+                                        {new Date(orderData.created_at).toLocaleString()}
                                     </p>
                                 </div>
-                            </div>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                            <div className="px-6 py-4 border-b border-gray-200">
-                                <h2 className="text-lg font-semibold text-gray-900">{t('order.actions')}</h2>
-                            </div>
-                            <div className="p-6 space-y-3">
-                                <button className="w-full px-4 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium flex items-center justify-center">
-                                    <DocumentTextIcon className="h-4 w-4 mr-2" />
-                                    {t('order.downloadInvoice')}
-                                </button>
-                                {remainingAmount === 0 && (
-                                    <button className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium">
-                                        Sluit Bestelling
-                                    </button>
-                                )}
                             </div>
                         </div>
 
@@ -618,14 +453,14 @@ const OrderDetail: React.FC = () => {
                                 <div className="flex justify-between">
                                     <span className="text-gray-600">{t('order.tipPercentage')}</span>
                                     <span className="font-semibold text-purple-600">
-                    {orderTotal > 0 ? ((totalTips / orderTotal) * 100).toFixed(1) : 0}%
-                  </span>
+                                        {orderTotal > 0 ? ((totalTips / orderTotal) * 100).toFixed(1) : 0}%
+                                    </span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="text-gray-600">{t('order.splittyFees')}</span>
                                     <span className="font-semibold text-blue-600">
-                    €{totalFees.toFixed(2)}
-                  </span>
+                                        €{totalFees.toFixed(2)}
+                                    </span>
                                 </div>
                             </div>
                         </div>

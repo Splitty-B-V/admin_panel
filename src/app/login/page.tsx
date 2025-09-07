@@ -35,6 +35,10 @@ export default function Login() {
     ]
 
     useEffect(() => {
+        document.title = 'Login - Splitty'
+    }, [])
+
+    useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (!(event.target as Element).closest('.language-selector') && languageDropdownOpen) {
                 setLanguageDropdownOpen(false)

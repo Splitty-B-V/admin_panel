@@ -655,5 +655,18 @@
   "time.weekDaysShort.6": "Za",
   "errors.pageNotFound": "Pagina niet gevonden",
   "errors.redirectingToDashboard": "We sturen je door naar het dashboard",
-  "errors.goToDashboard": "Ga naar dashboard"
+  "errors.goToDashboard": "Ga naar dashboard",
+  "dashboardEmptyTablesTitle": "Geen actieve tafels op dit moment",
+  "dashboardEmptyTablesText": "Tafels met bestellingen verschijnen hier",
+  "payment.refunded": "Terugbetaald",
+  "payment.amountIncludingTipsAndFee": "Inclusief fooi en kosten",
+  "payment.methodAndProcessing": "Betaalmethode & Verwerking",
+  "payment.paymentCreatedOn": "Aangemaakt op",
+  "payment.payoutDate": "Uitbetaaldatum",
+  "payment.splitSessionInfo": "Split Sessie",
+  "payment.splitModeInfo": "Split Mode",
+  "payment.splitSessionStatus": "Sessie Status",
+  "payment.splitSessionStatusActive": "Actief",
+  "payment.splitSessionStatusEnded": "Beëindigd",
+  "payment.splitSessionInfoId": "Sessie-ID"
 }

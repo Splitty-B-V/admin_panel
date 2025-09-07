@@ -69,6 +69,11 @@ export async function apiLoginRestaurant(
 }
 
 
+export async function apiGetCurrentUser() {
+    return apiRequest('/auth/me')
+}
+
+
 export async function getRecentPayments(
     limit = 10,
     offset = 0,
@@ -104,4 +109,50 @@ export async function getRecentPayments(
 
 export async function getPaymentDetails(paymentId: string) {
     return apiRequest(`/restaurant_admin/payments/${paymentId}`)
+}
+
+export async function getActiveTablesList() {
+    return apiRequest(`/restaurant_admin/active_tables`)
+}
+
+export async function getDashboardAnalytics(params: {
+    dateFilter: string
+    customDateRange?: { start: string; end?: string }
+}) {
+    const queryParams = new URLSearchParams({
+        date_filter: params.dateFilter,
+        ...(params.customDateRange?.start && { start_date: params.customDateRange.start }),
+        ...(params.customDateRange?.end && { end_date: params.customDateRange.end })
+    })
+
+    return apiRequest(`/restaurant_admin/dashboard_analytics?${queryParams}`)
+}
+
+export async function exportAnalyticsPDF(params: {
+    dateFilter: string
+    customDateRange?: { start: string; end?: string }
+}): Promise<Blob> {
+    const queryParams = new URLSearchParams({
+        date_filter: params.dateFilter,
+        ...(params.customDateRange?.start && { start_date: params.customDateRange.start }),
+        ...(params.customDateRange?.end && { end_date: params.customDateRange.end })
+    })
+
+    const response = await fetch(`${API_BASE_URL}/restaurant_admin/export_analytics_pdf?${queryParams}`, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${localStorage.getItem('restaurant_token')}`,
+            'Content-Type': 'application/json'
+        }
+    })
+
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    return response.blob()
+}
+
+export async function getOrderDetail(orderId: string) {
+    return apiRequest(`/restaurant_admin/order/${orderId}`)
 }

@@ -655,5 +655,18 @@
   "time.weekDaysShort.6": "Sa",
   "errors.pageNotFound": "Seite nicht gefunden",
   "errors.redirectingToDashboard": "Sie werden zum Dashboard weitergeleitet",
-  "errors.goToDashboard": "Zum Dashboard gehen"
+  "errors.goToDashboard": "Zum Dashboard gehen",
+  "dashboardEmptyTablesTitle": "Zurzeit keine aktiven Tische",
+  "dashboardEmptyTablesText": "Tische mit Bestellungen erscheinen hier",
+  "payment.refunded": "Zurückerstattet",
+  "payment.amountIncludingTipsAndFee": "Inklusive Trinkgeld und Gebühren",
+  "payment.methodAndProcessing": "Zahlungsmethode & Verarbeitung",
+  "payment.paymentCreatedOn": "Erstellt am",
+  "payment.payoutDate": "Auszahlungsdatum",
+  "payment.splitSessionInfo": "Split-Sitzung",
+  "payment.splitModeInfo": "Split-Modus",
+  "payment.splitSessionStatus": "Sitzungsstatus",
+  "payment.splitSessionStatusActive": "Aktiv",
+  "payment.splitSessionStatusEnded": "Beëindigd",
+  "payment.splitSessionInfoId": "Sitzungs-ID"
 }

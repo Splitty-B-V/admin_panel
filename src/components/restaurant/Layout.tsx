@@ -379,7 +379,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         className="w-full text-left px-4 py-2 text-sm transition-colors duration-200 text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                     >
                       <UsersIcon className="h-4 w-4 inline mr-2" />
-                      Mijn Profiel
+                      {t('settings.tabs.profile')}
                     </button>
                     <div className="border-t border-gray-200 my-1"></div>
                     <button
@@ -587,7 +587,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         className="w-full text-left px-4 py-2 text-sm transition-colors duration-200 text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                     >
                       <UsersIcon className="h-4 w-4 inline mr-2" />
-                      Mijn Profiel
+                      {t('settings.tabs.profile')}
                     </button>
                     <div className="border-t border-gray-200 my-1"></div>
                     <button

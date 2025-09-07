@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'  // Изменено для App Router
-import { apiLoginRestaurant } from '@/lib/api'
+import {apiGetCurrentUser, apiLoginRestaurant} from '@/lib/api'
 
 interface User {
   id: string
@@ -28,6 +28,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
+
+  const loadUserFromServer = async (token: string): Promise<User | null> => {
+    try {
+      const userData = await apiGetCurrentUser()
+      return userData
+    } catch (error) {
+      // Если токен невалидный, очищаем localStorage
+      localStorage.removeItem('restaurant_token')
+      localStorage.removeItem('restaurant_user')
+      return null
+    }
+  }
 
   useEffect(() => {
     const token = localStorage.getItem('restaurant_token')

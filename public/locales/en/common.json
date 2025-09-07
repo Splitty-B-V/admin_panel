@@ -655,5 +655,18 @@
   "time.weekDaysShort.6": "Sat",
   "errors.pageNotFound": "Page not found",
   "errors.redirectingToDashboard": "Redirecting you to the dashboard",
-  "errors.goToDashboard": "Go to dashboard"
+  "errors.goToDashboard": "Go to dashboard",
+  "dashboardEmptyTablesTitle": "No active tables at the moment",
+  "dashboardEmptyTablesText": "Tables with orders will appear here",
+  "payment.refunded": "Refunded",
+  "payment.amountIncludingTipsAndFee": "Including tip and fees",
+  "payment.methodAndProcessing": "Payment Method & Processing",
+  "payment.paymentCreatedOn": "Created on",
+  "payment.payoutDate": "Payout Date",
+  "payment.splitSessionInfo": "Split Session",
+  "payment.splitModeInfo": "Split Mode",
+  "payment.splitSessionStatus": "Session Status",
+  "payment.splitSessionStatusActive": "Active",
+  "payment.splitSessionStatusEnded": "Ended",
+  "payment.splitSessionInfoId": "Session ID"
 }

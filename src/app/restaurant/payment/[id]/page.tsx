@@ -113,6 +113,10 @@ const PaymentDetail: React.FC = () => {
     const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
+        document.title = 'Payment - Splitty'
+    }, [])
+
+    useEffect(() => {
         const fetchPayment = async () => {
             if (!id) return
 
@@ -202,13 +206,13 @@ const PaymentDetail: React.FC = () => {
                         className="flex items-center text-gray-600 hover:text-gray-900 transition-colors mb-4"
                     >
                         <ArrowLeftIcon className="h-5 w-5 mr-2" />
-                        Terug naar overzicht
+                        {t("payment.backToOverview")}
                     </button>
 
                     <div className="flex items-center justify-between">
                         <div>
-                            <h1 className="text-2xl font-bold text-gray-900">Betalingsdetails</h1>
-                            <p className="text-gray-600 mt-1">Transaction ID: {payment.transactionId}</p>
+                            <h1 className="text-2xl font-bold text-gray-900">{t("order.paymentDetails")}</h1>
+                            <p className="text-gray-600 mt-1">{t('payment.transactionId')} ID: {payment.transactionId}</p>
                         </div>
                         <div className="flex items-center gap-3">
                             <button
@@ -216,12 +220,12 @@ const PaymentDetail: React.FC = () => {
                                 className="px-4 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium flex items-center"
                             >
                                 <ReceiptPercentIcon className="h-4 w-4 mr-2" />
-                                Bekijk bestelling
+                                {t("dashboard.activeTables.viewOrder")}
                             </button>
                             <div className={`px-4 py-2 rounded-full text-sm font-medium border ${getStatusColor(payment.status)}`}>
                                 {payment.status === 'completed' && <CheckCircleIcon className="h-4 w-4 inline mr-1" />}
                                 {payment.status === 'failed' && <XCircleIcon className="h-4 w-4 inline mr-1" />}
-                                {payment.status === 'completed' ? 'Betaald' : payment.status === 'failed' ? 'Mislukt' : payment.status === 'pending' ? 'In behandeling' : 'Terugbetaald'}
+                                {payment.status === 'completed' ? t("payment.paid") : payment.status === 'failed' ? t("payment.failed") : payment.status === 'pending' ? t("payment.pending") : 'Terugbetaald'}
                             </div>
                         </div>
                     </div>
@@ -236,7 +240,7 @@ const PaymentDetail: React.FC = () => {
                             <div className="bg-gradient-to-r from-green-50 to-emerald-50 px-6 py-4 border-b border-gray-200">
                                 <h2 className="text-lg font-semibold text-gray-900 flex items-center">
                                     <CalculatorIcon className="h-5 w-5 mr-2 text-green-600" />
-                                    Financieel overzicht
+                                    {t("payment.financialOverview")}
                                 </h2>
                             </div>
                             <div className="p-6">
@@ -245,7 +249,7 @@ const PaymentDetail: React.FC = () => {
                                     <div className="flex justify-between items-center pb-3 border-b border-gray-100">
                                         <div className="flex items-center">
                                             <ReceiptPercentIcon className="h-5 w-5 text-gray-400 mr-3" />
-                                            <span className="text-gray-700">Bestelbedrag</span>
+                                            <span className="text-gray-700">{t("payment.orderAmount")}</span>
                                         </div>
                                         <span className="text-lg font-semibold text-gray-900">€{payment.orderAmount.toFixed(2)}</span>
                                     </div>
@@ -254,7 +258,7 @@ const PaymentDetail: React.FC = () => {
                                     <div className="flex justify-between items-center pb-3 border-b border-gray-100">
                                         <div className="flex items-center">
                                             <GiftIcon className="h-5 w-5 text-gray-400 mr-3" />
-                                            <span className="text-gray-700">Fooi</span>
+                                            <span className="text-gray-700">{t("payment.tip")}</span>
                                             {payment.tipAmount > 0 && (
                                                 <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
                           {((payment.tipAmount / payment.orderAmount) * 100).toFixed(1)}%
@@ -268,9 +272,9 @@ const PaymentDetail: React.FC = () => {
                                     <div className="flex justify-between items-center pb-3 border-b border-gray-100">
                                         <div className="flex items-center">
                                             <CreditCardIcon className="h-5 w-5 text-gray-400 mr-3" />
-                                            <span className="text-gray-700">Servicekosten</span>
+                                            <span className="text-gray-700">{t("payment.serviceFee")}</span>
                                             <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                        Door klant betaald
+                        {t("payment.paidByCustomer")}
                       </span>
                                         </div>
                                         <span className="text-lg font-semibold text-blue-600">€{payment.splittyFee.toFixed(2)}</span>
@@ -281,8 +285,8 @@ const PaymentDetail: React.FC = () => {
                                         <div className="flex items-center">
                                             <BanknotesIcon className="h-5 w-5 text-gray-400 mr-3" />
                                             <div>
-                                                <span className="text-gray-700 font-medium">Totaal berekend</span>
-                                                <p className="text-xs text-gray-500">Inclusief fooi en kosten</p>
+                                                <span className="text-gray-700 font-medium">{t("order.totalAmount")}</span>
+                                                <p className="text-xs text-gray-500">{t("payment.amountIncludingTipsAndFee")}</p>
                                             </div>
                                         </div>
                                         <span className="text-lg font-bold text-gray-900">€{payment.totalCharged.toFixed(2)}</span>
@@ -293,8 +297,8 @@ const PaymentDetail: React.FC = () => {
                                         <div className="flex items-center">
                                             <BuildingStorefrontIcon className="h-6 w-6 text-green-600 mr-3" />
                                             <div>
-                                                <span className="text-green-900 font-semibold">Restaurant ontvangt</span>
-                                                <p className="text-xs text-green-700">Bestelbedrag + fooi</p>
+                                                <span className="text-green-900 font-semibold">{t("payment.restaurantReceives")}</span>
+                                                <p className="text-xs text-green-700">{t("payment.orderAmountPlusTip")}</p>
                                             </div>
                                         </div>
                                         <span className="text-2xl font-bold text-green-600">€{payment.netAmount.toFixed(2)}</span>
@@ -308,7 +312,7 @@ const PaymentDetail: React.FC = () => {
                             <div className="px-6 py-4 border-b border-gray-200">
                                 <h2 className="text-lg font-semibold text-gray-900 flex items-center">
                                     <ClipboardDocumentListIcon className="h-5 w-5 mr-2 text-gray-600" />
-                                    Betaalde items
+                                    {t("payment.splitDetails.paidItems")}
                                 </h2>
                             </div>
                             <div className="p-6">
@@ -330,7 +334,7 @@ const PaymentDetail: React.FC = () => {
                                     ))}
                                     <div className="pt-3 mt-3 border-t border-gray-100">
                                         <div className="flex justify-between items-center">
-                                            <span className="text-sm font-medium text-gray-700">Subtotaal items</span>
+                                            <span className="text-sm font-medium text-gray-700">{t("payment.subtotalItems")}</span>
                                             <span className="font-semibold text-gray-900">€{payment.orderAmount.toFixed(2)}</span>
                                         </div>
                                     </div>
@@ -342,24 +346,24 @@ const PaymentDetail: React.FC = () => {
                         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                             <div className="px-6 py-4 border-b border-gray-200">
                                 <h2 className="text-base font-medium text-gray-900">
-                                    Betaalmethode & Verwerking
+                                    {t("payment.methodAndProcessing")}
                                 </h2>
                             </div>
                             <div className="p-6">
                                 <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
                                     <div className="flex items-center justify-between sm:block">
-                                        <dt className="text-sm font-medium text-gray-500">Betaalmethode</dt>
+                                        <dt className="text-sm font-medium text-gray-500">{t("payment.paymentMethod")}</dt>
                                         <dd className="mt-1 text-sm text-gray-900 flex items-center">
                                             <CreditCardIcon className="h-4 w-4 mr-1.5 text-gray-400" />
                                             {getPaymentMethodDisplayName(payment.paymentMethod)}
                                         </dd>
                                     </div>
                                     <div className="flex items-center justify-between sm:block">
-                                        <dt className="text-sm font-medium text-gray-500">Payment Provider</dt>
+                                        <dt className="text-sm font-medium text-gray-500">{t("payment.paymentProvider")}</dt>
                                         <dd className="mt-1 text-sm text-gray-900">{payment.paymentProvider}</dd>
                                     </div>
                                     <div className="flex items-center justify-between sm:block">
-                                        <dt className="text-sm font-medium text-gray-500">Aangemaakt op</dt>
+                                        <dt className="text-sm font-medium text-gray-500">{t("payment.paymentCreatedOn")}</dt>
                                         <dd className="mt-1 text-sm text-gray-900">
                                             {payment.timestamp.toLocaleString('nl-NL', {
                                                 day: 'numeric',
@@ -371,7 +375,7 @@ const PaymentDetail: React.FC = () => {
                                         </dd>
                                     </div>
                                     <div className="flex items-center justify-between sm:block">
-                                        <dt className="text-sm font-medium text-gray-500">Voltooid op</dt>
+                                        <dt className="text-sm font-medium text-gray-500">{t("order.completed")}</dt>
                                         <dd className="mt-1 text-sm text-gray-900">
                                             {payment.processedAt ? payment.processedAt.toLocaleString('nl-NL', {
                                                 day: 'numeric',
@@ -383,7 +387,7 @@ const PaymentDetail: React.FC = () => {
                                         </dd>
                                     </div>
                                     <div className="flex items-center justify-between sm:block">
-                                        <dt className="text-sm font-medium text-gray-500">Uitbetaaldatum</dt>
+                                        <dt className="text-sm font-medium text-gray-500">{t("payment.payoutDate")}</dt>
                                         <dd className="mt-1 text-sm text-gray-900">
                                             {payment.settlementDate.toLocaleDateString('nl-NL', {
                                                 day: 'numeric',
@@ -404,12 +408,12 @@ const PaymentDetail: React.FC = () => {
                             <div className="px-6 py-4 border-b border-gray-200">
                                 <h2 className="text-lg font-semibold text-gray-900 flex items-center">
                                     <UsersIcon className="h-5 w-5 mr-2 text-gray-600" />
-                                    Split Sessie
+                                    {t("payment.splitSessionInfo")}
                                 </h2>
                             </div>
                             <div className="p-6 space-y-4">
                                 <div>
-                                    <p className="text-sm text-gray-500 mb-1">Split Mode</p>
+                                    <p className="text-sm text-gray-500 mb-1">{t("payment.splitModeInfo")}</p>
                                     <p className="font-semibold text-gray-900 capitalize">
                                         {payment.splitSession.split_mode === 'items' ? 'Items' :
                                             payment.splitSession.split_mode === 'equal' ? 'Gelijk verdeeld' :
@@ -418,11 +422,11 @@ const PaymentDetail: React.FC = () => {
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-sm text-gray-500 mb-1">Session Status</p>
+                                    <p className="text-sm text-gray-500 mb-1">{t("payment.splitSessionStatus")}</p>
                                     <div className="flex items-center">
                                         <div className={`w-2 h-2 rounded-full mr-2 ${payment.splitSession.is_active ? 'bg-green-500' : 'bg-gray-400'}`}></div>
                                         <p className="font-semibold text-gray-900">
-                                            {payment.splitSession.is_active ? 'Actief' : 'Beëindigd'}
+                                            {payment.splitSession.is_active ? t("payment.splitSessionStatusActive") : t("payment.splitSessionStatusActive")}
                                         </p>
                                     </div>
                                 </div>
@@ -433,7 +437,7 @@ const PaymentDetail: React.FC = () => {
                                     </div>
                                 )}
                                 <div>
-                                    <p className="text-sm text-gray-500 mb-1">Session ID</p>
+                                    <p className="text-sm text-gray-500 mb-1">{t("payment.splitSessionInfoId")}</p>
                                     <p className="font-mono text-sm font-semibold text-gray-900">{payment.splitSession.id}</p>
                                 </div>
                             </div>
@@ -444,34 +448,34 @@ const PaymentDetail: React.FC = () => {
                             <div className="px-6 py-4 border-b border-gray-200">
                                 <h2 className="text-lg font-semibold text-gray-900 flex items-center">
                                     <InformationCircleIcon className="h-5 w-5 mr-2 text-gray-600" />
-                                    Snelle info
+                                    {t("payment.quickInfo")}
                                 </h2>
                             </div>
                             <div className="p-6 space-y-4">
                                 <div>
-                                    <p className="text-sm text-gray-500 mb-1">Payment ID</p>
+                                    <p className="text-sm text-gray-500 mb-1">{t("payment.paymentId")}</p>
                                     <p className="font-mono text-sm font-semibold text-gray-900">{payment.id}</p>
                                 </div>
                                 <div>
-                                    <p className="text-sm text-gray-500 mb-1">Transaction ID</p>
+                                    <p className="text-sm text-gray-500 mb-1">{t("payment.transactionId")}</p>
                                     <p className="font-mono text-sm font-semibold text-gray-900">{payment.transactionId}</p>
                                 </div>
                                 <div>
-                                    <p className="text-sm text-gray-500 mb-1">Order Nummer</p>
+                                    <p className="text-sm text-gray-500 mb-1">{t("payment.orderNumber")}</p>
                                     <p className="font-semibold text-gray-900 flex items-center">
                                         <HashtagIcon className="h-4 w-4 mr-1 text-gray-600" />
                                         {payment.orderNumber}
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-sm text-gray-500 mb-1">Tafel</p>
+                                    <p className="text-sm text-gray-500 mb-1">{t("payment.table")}</p>
                                     <p className="font-semibold text-gray-900 flex items-center">
                                         <BuildingStorefrontIcon className="h-4 w-4 mr-1 text-gray-600" />
-                                        Tafel {payment.tableNumber}
+                                        {t("payment.table")} {payment.tableNumber}
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-sm text-gray-500 mb-1">Tijdstip</p>
+                                    <p className="text-sm text-gray-500 mb-1">{t("payment.time")}</p>
                                     <p className="font-semibold text-gray-900 flex items-center">
                                         <ClockIcon className="h-4 w-4 mr-1 text-gray-600" />
                                         {payment.timestamp.toLocaleString('nl-NL')}
@@ -483,30 +487,30 @@ const PaymentDetail: React.FC = () => {
                         {/* Actions */}
                         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                             <div className="px-6 py-4 border-b border-gray-200">
-                                <h2 className="text-lg font-semibold text-gray-900">Acties</h2>
+                                <h2 className="text-lg font-semibold text-gray-900">{t("payment.actions")}</h2>
                             </div>
                             <div className="p-6 space-y-3">
                                 {payment.status === 'completed' && (
                                     <>
                                         <button className="w-full px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium flex items-center justify-center">
                                             <DocumentTextIcon className="h-4 w-4 mr-2" />
-                                            Download factuur
+                                            {t("payment.downloadInvoice")}
                                         </button>
                                         <button className="w-full px-4 py-2 bg-orange-50 text-orange-700 rounded-lg hover:bg-orange-100 transition-colors text-sm font-medium">
-                                            Terugbetaling aanvragen
+                                            {t("payment.requestRefund")}
                                         </button>
                                     </>
                                 )}
                                 {payment.status === 'failed' && (
                                     <button className="w-full px-4 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium">
-                                        Opnieuw proberen
+                                        {t("payment.retryPayment")}
                                     </button>
                                 )}
                                 <button
-                                    onClick={() => router.push(`/restaurant/order/${payment.tableNumber}`)}
+                                    onClick={() => router.push(`/restaurant/order/${payment?.orderNumber}`)}
                                     className="w-full px-4 py-2 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium"
                                 >
-                                    Bekijk bestelling details
+                                    {t("payment.viewOrderDetails")}
                                 </button>
                             </div>
                         </div>

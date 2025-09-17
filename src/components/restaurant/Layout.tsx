@@ -27,26 +27,20 @@ interface NavigationItem {
   submenu?: NavigationItem[]
 }
 
-interface User {
-  name?: string
-  restaurantName?: string
-  role?: string
-}
-
 interface LayoutProps {
   children: ReactNode
 }
 
 const getNavigation = (t: (key: string) => string): NavigationItem[] => [
   { name: t('nav.dashboard'), href: '/restaurant/dashboard', icon: HomeIcon },
-  { name: t('nav.payments'), href: '/uitbetalingen', icon: CurrencyEuroIcon },
+  { name: t('nav.payments'), href: '/payouts', icon: CurrencyEuroIcon },
   {
     name: t('nav.management'),
-    href: '/settings',
+    href: '',
     icon: Cog6ToothIcon,
     submenu: [
-      { name: t('nav.settings'), href: '/settings', icon: Cog6ToothIcon },
-      { name: t('nav.team'), href: '/team', icon: UsersIcon },
+      { name: t('nav.settings'), href: '/restaurant/settings', icon: Cog6ToothIcon },
+      { name: t('nav.team'), href: '/restaurant/team', icon: UsersIcon },
     ]
   },
 ]
@@ -61,39 +55,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   })
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false)
-  const [restaurantLogo, setRestaurantLogo] = useState('/logo-trans.webp')
-  const [userProfilePicture, setUserProfilePicture] = useState<string | null>(null)
-  const [userName, setUserName] = useState('')
-  const [userRole, setUserRole] = useState('')
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null)
 
   const router = useRouter()
-  const { user, logout } = useAuth()
+  const { user, restaurant, logout } = useAuth()
   const { locale, setLocale, t, availableLanguages } = useLanguage()
 
   // Auto-expand Management menu when navigating to Settings or Team
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const pathname = window.location.pathname
-      if (pathname === '/settings' || pathname === '/team') {
+      if (pathname === '/restaurant/settings' || pathname === '/restaurant/team') {
         setExpandedMenu(t('nav.management'))
       }
     }
   }, [t])
-
-  // Load preferences and data
-  useEffect(() => {
-    const savedLogo = localStorage.getItem('restaurant_logo')
-    if (savedLogo) setRestaurantLogo(savedLogo)
-
-    const savedProfilePic = localStorage.getItem('restaurant_userProfilePicture')
-    const savedUserName = localStorage.getItem('restaurant_userName')
-    const savedUserRole = localStorage.getItem('restaurant_userRole')
-
-    setUserProfilePicture(savedProfilePic)
-    setUserName(savedUserName || user?.name || 'User')
-    setUserRole(savedUserRole || user?.role || 'staff')
-  }, [user])
 
   // Close menus on outside click
   useEffect(() => {
@@ -133,6 +109,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     return window.location.pathname === path
   }
 
+  // Get data from context or fallback
+  const restaurantLogo = restaurant?.logo_url || '/logo-trans.webp'
+  const restaurantName = restaurant?.name || 'Restaurant'
+  const userName = user?.full_name || 'User'
+  const userRole = user?.role || 'Staff'
+  const userProfilePicture = user?.profile_picture_url
+
   return (
       <div className="h-screen overflow-hidden flex">
         {/* Mobile sidebar backdrop */}
@@ -170,7 +153,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         </div>
                         <div className="ml-3 flex-1">
                           <p className="text-sm font-semibold text-gray-900 group-hover:text-green-600 transition-colors">
-                            {user?.restaurantName || 'Limon Food & Drinks'}
+                            {restaurantName}
                           </p>
                           <p className="text-xs text-gray-500 mt-0.5">{t('layout.restaurantAdmin')}</p>
                         </div>
@@ -202,9 +185,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         onClick={() => {
                           if (item.submenu) {
                             setExpandedMenu(isExpanded ? null : item.name)
-                            if (item.href && !isExpanded) {
-                              router.push(item.href)
-                            }
                           } else if (item.href) {
                             router.push(item.href)
                           }
@@ -269,37 +249,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
           {/* Bottom Section */}
           <div className="px-4 py-4 border-t border-gray-200 space-y-3">
-            {/* Support Button */}
-            <button
-                onClick={() => router.push('/support')}
-                className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 bg-red-50 text-red-700 hover:text-red-900 hover:bg-red-100 border border-red-200"
-            >
-              <div className="flex items-center">
-                <ChatBubbleLeftRightIcon className="h-5 w-5 mr-3 text-red-500" />
-                {!sidebarCollapsed && <span>{t('nav.support')}</span>}
-              </div>
-              {!sidebarCollapsed && (
-                  <div className="text-xs font-medium bg-red-100 text-red-700 px-2 py-1 rounded">
-                    Help
-                  </div>
-              )}
-            </button>
-
-            {/* Notification Button */}
-            <button
-                onClick={() => router.push('/settings?tab=notifications')}
-                className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 bg-gray-50 text-gray-700 hover:text-gray-900 hover:bg-gray-100"
-            >
-              <div className="flex items-center">
-                <BellIcon className="h-5 w-5 mr-3 text-gray-500" />
-                {!sidebarCollapsed && <span>Notificaties</span>}
-              </div>
-              {!sidebarCollapsed && (
-                  <div className="w-6 h-6 text-xs font-bold rounded-full flex items-center justify-center bg-green-500 text-white">
-                    2
-                  </div>
-              )}
-            </button>
 
             {/* Language Selector */}
             {!sidebarCollapsed && (
@@ -373,7 +322,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <div className="fixed bottom-4 left-4 right-4 lg:absolute lg:bottom-full lg:left-0 lg:right-auto lg:mb-2 lg:w-full rounded-lg bg-white border border-gray-200 shadow-xl py-1 z-[100]">
                     <button
                         onClick={() => {
-                          router.push('/settings?tab=profiel')
+                          router.push('/restaurant/settings?tab=profile')
                           setUserMenuOpen(false)
                         }}
                         className="w-full text-left px-4 py-2 text-sm transition-colors duration-200 text-gray-600 hover:text-gray-900 hover:bg-gray-100"
@@ -395,7 +344,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </div>
 
-        {/* Mobile Sidebar */}
+        {/* Mobile Sidebar - Similar structure but with mobile data */}
         <div className={`fixed inset-y-0 left-0 z-50 w-72 transform transition-all duration-300 ease-in-out lg:hidden ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         } flex flex-col bg-white border-r border-gray-200`}>
@@ -410,16 +359,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </button>
           </div>
 
-          {/* Same content as desktop sidebar */}
+          {/* Mobile header */}
           <div className="border-b border-gray-100">
             <div className="px-6 py-6">
-              <Link href="/dashboard" className="flex items-center group">
+              <Link href="/restaurant/dashboard" className="flex items-center group">
                 <div className="w-12 h-12 rounded-xl overflow-hidden bg-gradient-to-br from-green-50 to-emerald-50 border border-green-100 group-hover:border-green-200 transition-all duration-200 shadow-sm">
                   <img src={restaurantLogo} alt="Restaurant Logo" className="w-full h-full object-cover" />
                 </div>
                 <div className="ml-3 flex-1">
                   <p className="text-sm font-semibold text-gray-900 group-hover:text-green-600 transition-colors">
-                    {user?.restaurantName || 'Limon Food & Drinks'}
+                    {restaurantName}
                   </p>
                   <p className="text-xs text-gray-500 mt-0.5">{t('layout.restaurantAdmin')}</p>
                 </div>
@@ -427,10 +376,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
           </div>
 
+          {/* Mobile navigation */}
           <nav className="flex-1 py-6 overflow-y-auto">
             {getNavigation(t).map((item) => {
-              const isActive = isCurrentPath(item.href) ||
-                  (item.submenu && item.submenu.some(sub => isCurrentPath(sub.href)))
+              const isActive = item.submenu
+                  ? item.submenu.some(sub => isCurrentPath(sub.href))
+                  : isCurrentPath(item.href)
               const isExpanded = expandedMenu === item.name
 
               return (
@@ -439,10 +390,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         onClick={() => {
                           if (item.submenu) {
                             setExpandedMenu(isExpanded ? null : item.name)
-                            if (item.href && !isExpanded) {
-                              router.push(item.href)
-                              setSidebarOpen(false)
-                            }
                           } else if (item.href) {
                             router.push(item.href)
                             setSidebarOpen(false)
@@ -503,19 +450,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
           {/* Mobile Bottom Section */}
           <div className="px-4 py-4 border-t border-gray-200 space-y-3">
-            <button
-                onClick={() => router.push('/support')}
-                className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 bg-red-50 text-red-700 hover:text-red-900 hover:bg-red-100 border border-red-200"
-            >
-              <div className="flex items-center">
-                <ChatBubbleLeftRightIcon className="h-5 w-5 mr-3 text-red-500" />
-                <span>{t('nav.support')}</span>
-              </div>
-              <div className="text-xs font-medium bg-red-100 text-red-700 px-2 py-1 rounded">
-                Help
-              </div>
-            </button>
-
             <div className="language-selector-sidebar relative">
               <button
                   onClick={() => setLanguageMenuOpen(!languageMenuOpen)}
@@ -580,7 +514,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <div className="fixed bottom-4 left-4 right-4 rounded-lg bg-white border border-gray-200 shadow-xl py-1 z-[100]">
                     <button
                         onClick={() => {
-                          router.push('/settings?tab=profiel')
+                          router.push('/restaurants/settings?tab=profile')
                           setUserMenuOpen(false)
                           setSidebarOpen(false)
                         }}

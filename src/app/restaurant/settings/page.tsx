@@ -379,18 +379,6 @@ const TabContent = ({
                                     disabled={saving}
                                 />
                             </div>
-                            {/*<div>*/}
-                            {/*    <label className="block text-sm font-medium text-gray-700 mb-2">*/}
-                            {/*        {t('settings.general.website')}*/}
-                            {/*    </label>*/}
-                            {/*    <input*/}
-                            {/*        type="text"*/}
-                            {/*        value={restaurantSettings.website || ''}*/}
-                            {/*        onChange={(e) => setRestaurantSettings({ ...restaurantSettings, website: e.target.value })}*/}
-                            {/*        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"*/}
-                            {/*        disabled={saving}*/}
-                            {/*    />*/}
-                            {/*</div>*/}
                         </div>
                     </div>
 
@@ -691,7 +679,7 @@ const TabContent = ({
 }
 
 const Settings: React.FC = () => {
-    const { user } = useAuth()
+    const { user, updateRestaurantData } = useAuth()
     const { t, locale } = useLanguage()
     const router = useRouter()
     const [activeTab, setActiveTab] = useState<TabId>('profile')
@@ -723,45 +711,74 @@ const Settings: React.FC = () => {
     const [showNewPassword, setShowNewPassword] = useState<boolean>(false)
     const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false)
 
-    const tabs: Tab[] = [
+    // Role-based tabs
+    const getAllTabs = (): Tab[] => [
         { id: 'profile', name: t('settings.tabs.profile'), icon: UserCircleIcon },
         { id: 'general', name: t('settings.tabs.general'), icon: BuildingStorefrontIcon },
         { id: 'notifications', name: t('settings.tabs.notifications'), icon: BellIcon },
         { id: 'security', name: t('settings.tabs.security'), icon: ShieldCheckIcon },
     ]
 
+    const getAvailableTabs = (): Tab[] => {
+        const allTabs = getAllTabs()
+        if (user?.is_restaurant_admin) {
+            return allTabs
+        } else {
+            // For restaurant_staff, only show profile and security
+            return allTabs.filter(tab => tab.id === 'profile' || tab.id === 'security')
+        }
+    }
+
+    const tabs = getAvailableTabs()
+
     // Load data on mount
     useEffect(() => {
         loadData()
     }, [])
+
+    // Check if current tab is available for user role
+    useEffect(() => {
+        const availableTabs = getAvailableTabs()
+        const currentTabAvailable = availableTabs.some(tab => tab.id === activeTab)
+
+        if (!currentTabAvailable) {
+            setActiveTab('profile') // Default to profile if current tab is not available
+        }
+    }, [user?.is_restaurant_admin, activeTab])
 
     const loadData = async () => {
         setLoading(true)
         setError(null)
 
         try {
-            // Load all data in parallel
-            const [profileData, restaurantData, notificationsData, telegramData] = await Promise.all([
-                settingsApi.getUserProfile(),
-                settingsApi.getRestaurantSettings(),
-                settingsApi.getNotificationSettings(),
-                settingsApi.getTelegramSettings()
-            ])
-
+            // Always load user profile
+            const profileData = await settingsApi.getUserProfile()
             setUserProfile(profileData)
-            setRestaurantSettings(restaurantData)
-            setNotificationSettings(notificationsData)
-            setTelegramSettings(telegramData)
 
-            // Set preview images
+            // Set preview image for profile
             if (profileData.profile_picture_url) {
                 setPreviewProfilePic(profileData.profile_picture_url)
             }
-            if (restaurantData.logo_url) {
-                setPreviewLogo(restaurantData.logo_url)
-            }
-            if (restaurantData.banner_url) {
-                setPreviewBanner(restaurantData.banner_url)
+
+            // Load additional data only for admins
+            if (user?.is_restaurant_admin) {
+                const [restaurantData, notificationsData, telegramData] = await Promise.all([
+                    settingsApi.getRestaurantSettings(),
+                    settingsApi.getNotificationSettings(),
+                    settingsApi.getTelegramSettings()
+                ])
+
+                setRestaurantSettings(restaurantData)
+                setNotificationSettings(notificationsData)
+                setTelegramSettings(telegramData)
+
+                // Set preview images for restaurant
+                if (restaurantData.logo_url) {
+                    setPreviewLogo(restaurantData.logo_url)
+                }
+                if (restaurantData.banner_url) {
+                    setPreviewBanner(restaurantData.banner_url)
+                }
             }
 
         } catch (err: any) {
@@ -773,7 +790,7 @@ const Settings: React.FC = () => {
     }
 
     const handleSave = async (): Promise<void> => {
-        if (!userProfile || !restaurantSettings || !notificationSettings) return
+        if (!userProfile) return
 
         setSaving(true)
         setError(null)
@@ -789,30 +806,39 @@ const Settings: React.FC = () => {
                 setUserProfile(updatedProfile)
             }
 
-            if (activeTab === 'general') {
-                const updatedRestaurant = await settingsApi.updateRestaurantSettings({
-                    name: restaurantSettings.name,
-                    address: restaurantSettings.address,
-                    city: restaurantSettings.city,
-                    postal_code: restaurantSettings.postal_code,
-                    country: restaurantSettings.country,
-                    contact_email: restaurantSettings.contact_email,
-                    contact_phone: restaurantSettings.contact_phone,
-                    kvk_number: restaurantSettings.kvk_number,
-                    vat_number: restaurantSettings.vat_number
-                })
-                setRestaurantSettings(updatedRestaurant)
-            }
-
-            if (activeTab === 'notifications') {
-                const updatedNotifications = await settingsApi.updateNotificationSettings(notificationSettings)
-                setNotificationSettings(updatedNotifications)
-
-                if (telegramSettings) {
-                    const updatedTelegram = await settingsApi.updateTelegramSettings({
-                        notification_language: telegramSettings.notification_language
+            // Only admins can save general and notification settings
+            if (user?.is_restaurant_admin) {
+                if (activeTab === 'general' && restaurantSettings) {
+                    const updatedRestaurant = await settingsApi.updateRestaurantSettings({
+                        name: restaurantSettings.name,
+                        address: restaurantSettings.address,
+                        city: restaurantSettings.city,
+                        postal_code: restaurantSettings.postal_code,
+                        country: restaurantSettings.country,
+                        contact_email: restaurantSettings.contact_email,
+                        contact_phone: restaurantSettings.contact_phone,
+                        kvk_number: restaurantSettings.kvk_number,
+                        vat_number: restaurantSettings.vat_number
                     })
-                    setTelegramSettings(updatedTelegram)
+                    setRestaurantSettings(updatedRestaurant)
+
+                    // Update restaurant data in AuthContext for immediate UI update
+                    updateRestaurantData({
+                        name: updatedRestaurant.name,
+                        logo_url: updatedRestaurant.logo_url
+                    })
+                }
+
+                if (activeTab === 'notifications' && notificationSettings) {
+                    const updatedNotifications = await settingsApi.updateNotificationSettings(notificationSettings)
+                    setNotificationSettings(updatedNotifications)
+
+                    if (telegramSettings) {
+                        const updatedTelegram = await settingsApi.updateTelegramSettings({
+                            notification_language: telegramSettings.notification_language
+                        })
+                        setTelegramSettings(updatedTelegram)
+                    }
                 }
             }
 
@@ -850,7 +876,7 @@ const Settings: React.FC = () => {
     }
 
     const handleLogoFile = async (file: File | null): Promise<void> => {
-        if (!file) return
+        if (!file || !user?.is_restaurant_admin) return
 
         try {
             setSaving(true)
@@ -860,6 +886,9 @@ const Settings: React.FC = () => {
             if (restaurantSettings) {
                 setRestaurantSettings({ ...restaurantSettings, logo_url: result.url })
             }
+
+            // Update restaurant logo in AuthContext immediately
+            updateRestaurantData({ logo_url: result.url })
 
             setSaved(true)
             setTimeout(() => setSaved(false), 3000)
@@ -872,7 +901,7 @@ const Settings: React.FC = () => {
     }
 
     const handleBannerFile = async (file: File | null): Promise<void> => {
-        if (!file) return
+        if (!file || !user?.is_restaurant_admin) return
 
         try {
             setSaving(true)
@@ -894,6 +923,8 @@ const Settings: React.FC = () => {
     }
 
     const handleTestNotification = async (): Promise<void> => {
+        if (!user?.is_restaurant_admin) return
+
         try {
             setSaving(true)
             await settingsApi.sendTestTelegramNotification()

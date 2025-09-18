@@ -293,7 +293,7 @@ export interface RestaurantSettings {
     country: string
     contact_email: string
     contact_phone: string | null
-    logo_url: string | null
+    logo_url: string
     banner_url: string | null
     kvk_number?: string
     vat_number?: string

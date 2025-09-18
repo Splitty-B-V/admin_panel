@@ -31,6 +31,7 @@ interface AuthContextType {
   loading: boolean
   refreshUser: () => Promise<void>
   refreshRestaurant: () => Promise<void>
+  updateRestaurantData: (updatedData: Partial<RestaurantInfo>) => void
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType)
@@ -98,6 +99,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error('Failed to refresh restaurant:', error)
+    }
+  }
+
+  const updateRestaurantData = (updatedData: Partial<RestaurantInfo>): void => {
+    if (restaurant) {
+      const updated = { ...restaurant, ...updatedData }
+      setRestaurant(updated)
+      localStorage.setItem('restaurant_info', JSON.stringify(updated))
     }
   }
 
@@ -201,7 +210,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         loading,
         refreshUser,
-        refreshRestaurant
+        refreshRestaurant,
+        updateRestaurantData
       }}>
         {children}
       </AuthContext.Provider>

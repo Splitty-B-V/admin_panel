@@ -25,25 +25,42 @@ interface NavigationItem {
   href: string
   icon: React.ComponentType<{ className?: string }>
   submenu?: NavigationItem[]
+  adminOnly?: boolean
 }
 
 interface LayoutProps {
   children: ReactNode
 }
 
-const getNavigation = (t: (key: string) => string): NavigationItem[] => [
-  { name: t('nav.dashboard'), href: '/restaurant/dashboard', icon: HomeIcon },
-  { name: t('nav.payments'), href: '/payouts', icon: CurrencyEuroIcon },
-  {
-    name: t('nav.management'),
-    href: '',
-    icon: Cog6ToothIcon,
-    submenu: [
-      { name: t('nav.settings'), href: '/restaurant/settings', icon: Cog6ToothIcon },
-      { name: t('nav.team'), href: '/restaurant/team', icon: UsersIcon },
-    ]
-  },
-]
+const getNavigation = (t: (key: string) => string, user: any): NavigationItem[] => {
+  const baseNavigation: NavigationItem[] = [
+    { name: t('nav.dashboard'), href: '/restaurant/dashboard', icon: HomeIcon },
+  ]
+
+  // Add admin-only items
+  if (user?.is_restaurant_admin) {
+    baseNavigation.push(
+        { name: t('nav.payments'), href: '/payouts', icon: CurrencyEuroIcon, adminOnly: true },
+        {
+          name: t('nav.management'),
+          href: '',
+          icon: Cog6ToothIcon,
+          adminOnly: true,
+          submenu: [
+            { name: t('nav.settings'), href: '/restaurant/settings', icon: Cog6ToothIcon },
+            { name: t('nav.team'), href: '/restaurant/team', icon: UsersIcon, adminOnly: true },
+          ]
+        }
+    )
+  } else {
+    // For staff, only add settings without submenu
+    baseNavigation.push(
+        { name: t('nav.settings'), href: '/restaurant/settings', icon: Cog6ToothIcon }
+    )
+  }
+
+  return baseNavigation
+}
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -61,15 +78,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, restaurant, logout } = useAuth()
   const { locale, setLocale, t, availableLanguages } = useLanguage()
 
-  // Auto-expand Management menu when navigating to Settings or Team
+  // Auto-expand Management menu when navigating to Settings or Team (admin only)
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && user?.is_restaurant_admin) {
       const pathname = window.location.pathname
       if (pathname === '/restaurant/settings' || pathname === '/restaurant/team') {
         setExpandedMenu(t('nav.management'))
       }
     }
-  }, [t])
+  }, [t, user?.is_restaurant_admin])
 
   // Close menus on outside click
   useEffect(() => {
@@ -174,7 +191,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
           {/* Navigation */}
           <nav className="flex-1 py-6 overflow-y-auto">
-            {getNavigation(t).map((item) => {
+            {getNavigation(t, user).map((item) => {
               const isActive = isCurrentPath(item.href) ||
                   (item.submenu && item.submenu.some(sub => isCurrentPath(sub.href)))
               const isExpanded = expandedMenu === item.name
@@ -378,7 +395,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
           {/* Mobile navigation */}
           <nav className="flex-1 py-6 overflow-y-auto">
-            {getNavigation(t).map((item) => {
+            {getNavigation(t, user).map((item) => {
               const isActive = item.submenu
                   ? item.submenu.some(sub => isCurrentPath(sub.href))
                   : isCurrentPath(item.href)
@@ -514,7 +531,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <div className="fixed bottom-4 left-4 right-4 rounded-lg bg-white border border-gray-200 shadow-xl py-1 z-[100]">
                     <button
                         onClick={() => {
-                          router.push('/restaurants/settings?tab=profile')
+                          router.push('/restaurant/settings?tab=profile')
                           setUserMenuOpen(false)
                           setSidebarOpen(false)
                         }}

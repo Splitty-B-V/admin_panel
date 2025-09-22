@@ -463,14 +463,14 @@ export default function PaymentHistory() {
                                         <td className="px-4 py-3 whitespace-nowrap text-sm hidden lg:table-cell">
                                             <div className="flex space-x-2">
                                                 <button
-                                                    onClick={() => router.push(`/order/${payment.orderNumber}`)}
+                                                    onClick={() => router.push(`/restaurant/order/${payment.orderNumber}`)}
                                                     className="text-green-600 hover:text-green-700 font-medium"
                                                 >
                                                     {locale === 'nl' ? 'Bestelling' : 'Order'}
                                                 </button>
                                                 <span className="text-gray-300">|</span>
                                                 <button
-                                                    onClick={() => router.push(`/payment/${payment.id}`)}
+                                                    onClick={() => router.push(`/restaurant/payment/${payment.id}`)}
                                                     className="text-green-600 hover:text-green-700 font-medium"
                                                 >
                                                     {locale === 'nl' ? 'Details' : 'Details'}

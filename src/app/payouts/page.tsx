@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import Layout from '@/components/restaurant/Layout'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { usePayouts, useBalance, usePayoutStatistics, usePayoutDetails } from '@/hooks/usePayouts'
 import type { Payout } from '@/types/payouts'
@@ -24,6 +23,7 @@ import {
     ExclamationTriangleIcon,
     EyeIcon,
 } from '@heroicons/react/24/outline'
+import SmartLayout from '@/components/common/SmartLayout'
 
 export default function Uitbetalingen() {
     const { t } = useLanguage()
@@ -155,7 +155,7 @@ export default function Uitbetalingen() {
     // Error handling
     if (payoutsError || balanceError || statsError) {
         return (
-            <Layout>
+            <SmartLayout>
                 <div className="p-6">
                     <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                         <div className="flex">
@@ -177,12 +177,12 @@ export default function Uitbetalingen() {
                         </div>
                     </div>
                 </div>
-            </Layout>
+            </SmartLayout>
         )
     }
 
     return (
-        <Layout>
+        <SmartLayout>
             <div className="p-6">
                 {/* Header */}
                 <div className="mb-8">
@@ -511,6 +511,6 @@ export default function Uitbetalingen() {
                     </div>
                 )}
             </div>
-        </Layout>
+        </SmartLayout>
     )
 }

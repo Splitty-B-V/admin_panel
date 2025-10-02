@@ -2,7 +2,6 @@
 
 import React, {useState, useEffect, useMemo} from 'react'
 import { useRouter } from 'next/navigation'
-import Layout from '@/components/restaurant/Layout'
 import DateFilterExact from '@/components/restaurant/DateFilterExact'
 import { useAuth } from '@/contexts/AuthContext'
 import { useLanguage } from '@/contexts/LanguageContext'
@@ -31,6 +30,7 @@ import {
     ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline'
 import {downloadBlob, generateReportFilename} from "@/utils/downloadHelper";
+import SmartLayout from '@/components/common/SmartLayout'
 
 
 interface MockData {
@@ -364,7 +364,7 @@ const Dashboard: React.FC = () => {
     }
 
     return (
-        <Layout>
+        <SmartLayout>
             <div className="p-3 sm:p-4 md:p-6">
                 {/* Header */}
                 <div className="mb-4 sm:mb-6 md:mb-8">
@@ -976,7 +976,7 @@ const Dashboard: React.FC = () => {
                 )}
 
             </div>
-        </Layout>
+        </SmartLayout>
     )
 }
 

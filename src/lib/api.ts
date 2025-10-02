@@ -17,7 +17,7 @@ async function apiRequest<T>(
     method: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT' = 'GET',
     body?: any
 ): Promise<T> {
-    const token = localStorage.getItem('restaurant_token')
+    const token = localStorage.getItem('auth_token')
 
     const config: RequestInit = {
         method,
@@ -84,6 +84,7 @@ export interface User {
     last_name: string
     phone?: string
     profile_picture_url?: string
+    is_admin: boolean
     is_restaurant_admin: boolean
     is_restaurant_staff: boolean
     is_active: boolean
@@ -184,7 +185,7 @@ export async function exportAnalyticsPDF(params: {
     const response = await fetch(`${API_BASE_URL}/restaurant_admin/export_analytics_pdf?${queryParams}`, {
         method: 'GET',
         headers: {
-            'Authorization': `Bearer ${localStorage.getItem('restaurant_token')}`,
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
             'Content-Type': 'application/json'
         }
     })
@@ -229,7 +230,7 @@ async function apiUpload<T>(
     endpoint: string,
     file: File
 ): Promise<T> {
-    const token = localStorage.getItem('restaurant_token')
+    const token = localStorage.getItem('auth_token')
 
     const formData = new FormData()
     formData.append('file', file)

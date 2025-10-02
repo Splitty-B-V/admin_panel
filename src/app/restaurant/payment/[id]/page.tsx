@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import Layout from '@/components/restaurant/Layout'
 import { useLanguage } from '@/contexts/LanguageContext'
 import {
     ArrowLeftIcon,
@@ -22,6 +21,7 @@ import {
     UsersIcon,
 } from '@heroicons/react/24/outline'
 import {getPaymentDetails} from "@/lib/api";
+import SmartLayout from "@/components/common/SmartLayout";
 
 // TypeScript interfaces based on API response
 interface PaymentItem {
@@ -141,38 +141,38 @@ const PaymentDetail: React.FC = () => {
 
     if (loading) {
         return (
-            <Layout>
+            <SmartLayout>
                 <div className="min-h-screen flex items-center justify-center">
                     <div className="text-center">
                         <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
                         <p className="mt-4 text-gray-600">Betaling laden...</p>
                     </div>
                 </div>
-            </Layout>
+            </SmartLayout>
         )
     }
 
     if (error) {
         return (
-            <Layout>
+            <SmartLayout>
                 <div className="p-6">
                     <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                         <p className="text-red-800">Fout bij laden betaling: {error}</p>
                     </div>
                 </div>
-            </Layout>
+            </SmartLayout>
         )
     }
 
     if (!payment) {
         return (
-            <Layout>
+            <SmartLayout>
                 <div className="p-6">
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                         <p className="text-yellow-800">Betaling niet gevonden</p>
                     </div>
                 </div>
-            </Layout>
+            </SmartLayout>
         )
     }
 
@@ -197,7 +197,7 @@ const PaymentDetail: React.FC = () => {
     }
 
     return (
-        <Layout>
+        <SmartLayout>
             <div className="p-6 max-w-7xl mx-auto">
                 {/* Header */}
                 <div className="mb-6">
@@ -517,7 +517,7 @@ const PaymentDetail: React.FC = () => {
                     </div>
                 </div>
             </div>
-        </Layout>
+        </SmartLayout>
     )
 }
 

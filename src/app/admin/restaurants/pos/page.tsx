@@ -1,0 +1,569 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import type { NextPage } from 'next'
+import Link from 'next/link'
+import SmartLayout from '@/components/common/SmartLayout'
+import Breadcrumb from '@/components/super_admin/Breadcrumb'
+import { useLanguage } from '@/contexts/LanguageContext'
+import {env} from "@/lib/env";
+import {
+    BuildingStorefrontIcon,
+    CheckCircleIcon,
+    XCircleIcon,
+    ClockIcon,
+    WifiIcon,
+    ArrowPathIcon,
+    CpuChipIcon,
+    ExclamationTriangleIcon,
+    ChevronRightIcon,
+    BellAlertIcon,
+    SignalSlashIcon,
+    SignalIcon,
+    BoltIcon,
+    XMarkIcon,
+    MapPinIcon,
+    MagnifyingGlassIcon
+} from '@heroicons/react/24/outline'
+
+const API_BASE_URL = `https://${env.apiUrl}/${env.apiVersion}`
+
+// Helper function to get auth headers
+function getAuthHeaders() {
+    const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token')
+    return {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+    }
+}
+
+interface Restaurant {
+    id: number
+    name: string
+    city: string
+    country: string
+    address: string
+    logo_url?: string
+    is_active: boolean
+    status: 'active' | 'onboarding' | 'deleted' | 'inactive'
+    pos_config?: {
+        pos_type: string
+        username: string
+        environment: string
+        is_active: boolean
+    }
+}
+
+interface POSStatus {
+    connected: boolean
+    configured: boolean
+    pos_type?: string
+    username?: string
+    environment?: string
+    is_active?: boolean
+    last_sync?: string | null
+}
+
+interface Notification {
+    id: string
+    type: 'error' | 'warning' | 'info'
+    title: string
+    message: string
+    restaurantId: number
+    timestamp: string
+}
+
+const POSIntegration: NextPage = () => {
+    const { t } = useLanguage()
+
+    // State для данных
+    const [allRestaurants, setAllRestaurants] = useState<Restaurant[]>([])
+    const [posStatuses, setPosStatuses] = useState<Record<number, POSStatus>>({})
+    const [notifications, setNotifications] = useState<Notification[]>([])
+    const [loading, setLoading] = useState(true)
+    const [refreshing, setRefreshing] = useState(false)
+    const [searching, setSearching] = useState(false)
+    const [error, setError] = useState<string | null>(null)
+
+    // State для поиска и фильтров
+    const [searchQuery, setSearchQuery] = useState('')
+    const [debouncedSearch, setDebouncedSearch] = useState('')
+    const [selectedFilter, setSelectedFilter] = useState('all')
+    const [showNotifications, setShowNotifications] = useState(true)
+
+    // Дебаунсинг для поиска
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchQuery)
+        }, 300)
+        return () => clearTimeout(timer)
+    }, [searchQuery])
+
+    // Загрузка ресторанов
+    const loadRestaurants = async (searchTerm?: string) => {
+        try {
+            setError(null)
+            if (searchTerm) {
+                setSearching(true)
+            } else {
+                setLoading(true)
+            }
+
+            const params = new URLSearchParams()
+            if (searchTerm) {
+                params.append('search', searchTerm)
+            }
+            params.append('limit', '100')
+
+            const response = await fetch(`${API_BASE_URL}/super_admin/restaurants?${params}`, {
+                headers: getAuthHeaders()
+            })
+
+            if (response.ok) {
+                const restaurantsData = await response.json()
+                setAllRestaurants(restaurantsData)
+                loadPosStatuses(restaurantsData)
+            } else {
+                throw new Error('Failed to load restaurants')
+            }
+        } catch (err: any) {
+            console.error('Error loading restaurants:', err)
+            setError(err.message || 'Failed to load restaurants')
+        } finally {
+            setLoading(false)
+            setSearching(false)
+        }
+    }
+
+    // Простая логика статусов POS только по данным ресторана
+    const loadPosStatuses = (restaurantsData: Restaurant[]) => {
+        const statuses: Record<number, POSStatus> = {}
+        const newNotifications: Notification[] = []
+
+        for (const restaurant of restaurantsData) {
+            if (!restaurant.is_active || restaurant.status === 'deleted') {
+                continue // Не показываем deleted/неактивные
+            }
+
+            if (restaurant.status === 'onboarding') {
+                // POS не настроен
+                statuses[restaurant.id] = { connected: false, configured: false }
+
+                newNotifications.push({
+                    id: `${restaurant.id}-not-configured`,
+                    type: 'info',
+                    title: 'Not Configured',
+                    message: `${restaurant.name} - POS integration needs setup`,
+                    restaurantId: restaurant.id,
+                    timestamp: new Date().toISOString()
+                })
+            } else if (restaurant.status === 'active') {
+                // POS настроен и активен
+                statuses[restaurant.id] = {
+                    connected: true,
+                    configured: true,
+                    is_active: true,
+                    last_sync: new Date().toISOString()
+                }
+            }
+        }
+
+        setPosStatuses(statuses)
+        setNotifications(newNotifications)
+    }
+
+    // Первоначальная загрузка
+    useEffect(() => {
+        loadRestaurants()
+    }, [])
+
+    // Поиск при изменении запроса
+    useEffect(() => {
+        if (debouncedSearch.trim()) {
+            loadRestaurants(debouncedSearch)
+        } else if (debouncedSearch === '' && searchQuery === '') {
+            loadRestaurants()
+        }
+    }, [debouncedSearch, searchQuery])
+
+    // Обновление данных
+    const handleRefresh = async () => {
+        setRefreshing(true)
+        await loadRestaurants(searchQuery)
+        setRefreshing(false)
+    }
+
+    // Фильтрация ресторанов
+    const filteredRestaurants = allRestaurants.filter((restaurant) => {
+        if (!restaurant.is_active || restaurant.status === 'deleted') return false
+
+        const matchesLocation = selectedFilter === 'all' ||
+            restaurant.city.toLowerCase().includes(selectedFilter.toLowerCase())
+
+        return matchesLocation
+    })
+
+    // Подсчет статистики
+    const activeRestaurants = allRestaurants.filter(r => r.is_active && r.status !== 'deleted')
+    const configuredCount = Object.values(posStatuses).filter(s => s.configured).length
+    const connectedCount = Object.values(posStatuses).filter(s => s.connected).length
+    const issuesCount = notifications.filter(n => n.type === 'error' || n.type === 'warning').length
+
+    if (loading) {
+        return (
+            <SmartLayout>
+                <div className="min-h-screen bg-[#F9FAFB] flex items-center justify-center">
+                    <div className="text-center">
+                        <ArrowPathIcon className="mx-auto h-12 w-12 text-gray-400 animate-spin" />
+                        <h3 className="mt-4 text-base font-medium text-gray-900">Loading POS data...</h3>
+                    </div>
+                </div>
+            </SmartLayout>
+        )
+    }
+
+    if (error) {
+        return (
+            <SmartLayout>
+                <div className="min-h-screen bg-[#F9FAFB] flex items-center justify-center">
+                    <div className="text-center">
+                        <ExclamationTriangleIcon className="mx-auto h-12 w-12 text-red-400" />
+                        <h3 className="mt-4 text-base font-medium text-gray-900">Error loading POS data</h3>
+                        <p className="mt-2 text-sm text-gray-500">{error}</p>
+                        <button
+                            onClick={() => loadRestaurants()}
+                            className="mt-4 inline-flex items-center px-4 py-2 bg-green-500 text-white font-medium rounded-lg hover:bg-green-600 transition-all"
+                        >
+                            <ArrowPathIcon className="mr-2 h-5 w-5" />
+                            Retry
+                        </button>
+                    </div>
+                </div>
+            </SmartLayout>
+        )
+    }
+
+    return (
+        <SmartLayout>
+            <div className="min-h-screen bg-[#F9FAFB]">
+                <div className="px-4 sm:px-6 lg:px-8 py-8">
+                    <div className="space-y-6">
+                        {/* Breadcrumb */}
+                        <Breadcrumb items={[{ label: 'POS Integration' }]} />
+
+                        {/* Header */}
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                            <div>
+                                <h1 className="text-2xl font-semibold text-[#111827] mb-1">
+                                    POS Integration
+                                </h1>
+                                <p className="text-[#6B7280]">
+                                    Monitor and manage point-of-sale system connections
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={handleRefresh}
+                                className={`inline-flex items-center px-4 py-2.5 rounded-lg transition-all duration-200 border border-gray-200 text-[#6B7280] bg-white hover:bg-gray-50 shadow-sm ${
+                                    refreshing ? 'opacity-50 cursor-not-allowed' : ''
+                                }`}
+                                disabled={refreshing}
+                            >
+                                <ArrowPathIcon className={`-ml-1 mr-2 h-5 w-5 ${refreshing ? 'animate-spin' : ''} text-gray-500`} />
+                                {refreshing ? 'Refreshing...' : 'Refresh Status'}
+                            </button>
+                        </div>
+
+                        {/* Stats Cards */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+                            <div className="p-6 rounded-xl bg-white shadow-sm">
+                                <div className="flex items-center">
+                                    <div className="p-3 rounded-lg bg-green-100">
+                                        <BuildingStorefrontIcon className="h-6 w-6 text-green-600" />
+                                    </div>
+                                    <div className="ml-4">
+                                        <p className="text-xs font-medium uppercase tracking-wider text-[#6B7280]">
+                                            Total Restaurants
+                                        </p>
+                                        <p className="text-2xl font-bold mt-2 text-[#111827]">
+                                            {activeRestaurants.length}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="p-6 rounded-xl bg-white shadow-sm">
+                                <div className="flex items-center">
+                                    <div className="p-3 rounded-lg bg-emerald-50">
+                                        <CpuChipIcon className="h-6 w-6 text-emerald-600" />
+                                    </div>
+                                    <div className="ml-4">
+                                        <p className="text-xs font-medium uppercase tracking-wider text-[#6B7280]">
+                                            Configured
+                                        </p>
+                                        <p className="text-2xl font-bold mt-2 text-[#111827]">
+                                            {configuredCount}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="p-6 rounded-xl bg-white shadow-sm">
+                                <div className="flex items-center">
+                                    <div className="p-3 rounded-lg bg-green-50">
+                                        <WifiIcon className="h-6 w-6 text-green-500" />
+                                    </div>
+                                    <div className="ml-4">
+                                        <p className="text-xs font-medium uppercase tracking-wider text-[#6B7280]">
+                                            Connected
+                                        </p>
+                                        <p className="text-2xl font-bold mt-2 text-[#111827]">
+                                            {connectedCount}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="p-6 rounded-xl bg-white shadow-sm">
+                                <div className="flex items-center">
+                                    <div className="p-3 rounded-lg bg-red-50">
+                                        <ExclamationTriangleIcon className="h-6 w-6 text-red-500" />
+                                    </div>
+                                    <div className="ml-4">
+                                        <p className="text-xs font-medium uppercase tracking-wider text-[#6B7280]">
+                                            Issues
+                                        </p>
+                                        <p className="text-2xl font-bold mt-2 text-[#111827]">
+                                            {issuesCount}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Search and Filter */}
+                        <div className="rounded-xl bg-white shadow-sm">
+                            <div className="p-6">
+                                <div className="flex flex-col lg:flex-row gap-4">
+                                    <div className="relative flex-1">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            {searching ? (
+                                                <ArrowPathIcon className="h-5 w-5 text-gray-400 animate-spin" />
+                                            ) : (
+                                                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                                            )}
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            className="block w-full pl-10 pr-3 py-2.5 rounded-lg text-sm focus:outline-none focus:ring-2 transition bg-white border border-gray-200 text-gray-900 placeholder-gray-500 focus:ring-green-500 hover:border-gray-300"
+                                            placeholder="Search restaurants..."
+                                        />
+                                    </div>
+
+                                    <div className="relative lg:w-48">
+                                        <select
+                                            value={selectedFilter}
+                                            onChange={(e) => setSelectedFilter(e.target.value)}
+                                            className="appearance-none w-full pl-3 pr-10 py-2.5 rounded-lg focus:outline-none focus:ring-2 cursor-pointer transition text-sm bg-white border border-gray-200 text-gray-900 focus:ring-green-500 hover:border-gray-300"
+                                        >
+                                            <option value="all">All Locations</option>
+                                            <option value="amsterdam">Amsterdam</option>
+                                            <option value="rotterdam">Rotterdam</option>
+                                            <option value="utrecht">Utrecht</option>
+                                            <option value="den haag">Den Haag</option>
+                                            <option value="eindhoven">Eindhoven</option>
+                                            <option value="zaandam">Zaandam</option>
+                                        </select>
+                                        <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                                            <svg className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Notifications Section */}
+                        {issuesCount > 0 && showNotifications && (
+                            <div className="rounded-lg bg-white border border-gray-200">
+                                <div className="p-4">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center">
+                                            <ExclamationTriangleIcon className="h-5 w-5 mr-2 text-yellow-500" />
+                                            <h3 className="text-sm font-medium text-gray-900">
+                                                Attention Required ({issuesCount})
+                                            </h3>
+                                        </div>
+                                        <button
+                                            onClick={() => setShowNotifications(false)}
+                                            className="p-1 rounded transition-colors hover:bg-gray-100"
+                                        >
+                                            <XMarkIcon className="h-4 w-4 text-gray-500" />
+                                        </button>
+                                    </div>
+                                    <div className="space-y-2">
+                                        {notifications.filter(n => n.type === 'error' || n.type === 'warning').slice(0, 3).map((notification) => (
+                                            <div
+                                                key={notification.id}
+                                                className="flex items-center justify-between"
+                                            >
+                                                <p className="text-sm text-gray-600">
+                                                    {notification.message}
+                                                </p>
+                                                <Link
+                                                    href={`/admin/restaurants/new/onboarding/${notification.restaurantId}?step=3`}
+                                                    className="text-sm text-green-600 hover:text-green-700"
+                                                >
+                                                    Configure →
+                                                </Link>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Restaurant POS Status List */}
+                        <div className="rounded-xl overflow-hidden bg-white shadow-sm">
+                            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                                <h2 className="text-lg font-semibold text-[#111827]">
+                                    Restaurant POS Status
+                                </h2>
+                            </div>
+
+                            <div className="p-4 space-y-3">
+                                {filteredRestaurants.map((restaurant) => {
+                                    const posStatus = posStatuses[restaurant.id]
+                                    const isConfigured = posStatus && posStatus.configured
+                                    const isConnected = posStatus && posStatus.connected
+                                    const isActive = posStatus && posStatus.is_active
+
+                                    return (
+                                        <div
+                                            key={restaurant.id}
+                                            className={`p-5 rounded-lg transition-all ${
+                                                !isConfigured
+                                                    ? 'bg-white border border-red-200 hover:border-red-300'
+                                                    : 'bg-white border border-green-200 hover:border-green-300'
+                                            }`}
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center space-x-4">
+                                                    {/* Restaurant Logo */}
+                                                    <div className="h-10 w-10 rounded-lg overflow-hidden flex-shrink-0 bg-white">
+                                                        {restaurant.logo_url ? (
+                                                            <img
+                                                                src={restaurant.logo_url}
+                                                                alt={restaurant.name}
+                                                                className="h-full w-full object-contain p-0.5"
+                                                            />
+                                                        ) : (
+                                                            <div className="h-full w-full flex items-center justify-center bg-gray-200">
+                                                                <BuildingStorefrontIcon className="h-5 w-5 text-gray-500" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="flex items-center gap-3">
+                                                            <h3 className="text-sm font-medium text-gray-900">
+                                                                {restaurant.name}
+                                                            </h3>
+                                                            {posStatus && posStatus.configured && (
+                                                                <span className="text-xs text-gray-400">
+                                                                    {posStatus.pos_type}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-xs mt-1 text-gray-500">
+                                                            {restaurant.city}, {restaurant.country}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center space-x-3">
+                                                    {/* Status */}
+                                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${
+                                                        isConnected && isActive
+                                                            ? 'bg-green-50 text-green-700'
+                                                            : !isConfigured
+                                                                ? 'bg-blue-50 text-blue-700'
+                                                                : !isConnected
+                                                                    ? 'bg-red-50 text-red-600'
+                                                                    : 'bg-yellow-50 text-yellow-700'
+                                                    }`}>
+                                                        {isConnected && isActive ? (
+                                                            <>
+                                                                <CheckCircleIcon className="h-3.5 w-3.5 mr-1" />
+                                                                Active
+                                                            </>
+                                                        ) : !isConfigured ? (
+                                                            <>
+                                                                <ClockIcon className="h-3.5 w-3.5 mr-1" />
+                                                                Not Configured
+                                                            </>
+                                                        ) : !isConnected ? (
+                                                            <>
+                                                                <XCircleIcon className="h-3.5 w-3.5 mr-1" />
+                                                                Not Connected
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <ClockIcon className="h-3.5 w-3.5 mr-1" />
+                                                                Inactive
+                                                            </>
+                                                        )}
+                                                    </span>
+
+                                                    {/* Action */}
+                                                    <Link
+                                                        href={isConfigured && isConnected && isActive
+                                                            ? `/restaurants/${restaurant.id}`
+                                                            : `/admin/restaurants/new/onboarding/${restaurant.id}?step=3`
+                                                        }
+                                                        className={`text-sm font-medium ${
+                                                            !isConfigured || !isConnected || !isActive
+                                                                ? 'text-green-600 hover:text-green-700'
+                                                                : 'text-gray-600 hover:text-gray-700'
+                                                        }`}
+                                                    >
+                                                        {!isConfigured || !isConnected || !isActive ? 'Configure →' : 'Details →'}
+                                                    </Link>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Empty State */}
+                        {filteredRestaurants.length === 0 && (
+                            <div className="text-center py-16 rounded-xl bg-white shadow-sm">
+                                <BuildingStorefrontIcon className="mx-auto h-12 w-12 text-gray-400" />
+                                <h3 className="mt-4 text-base font-medium text-[#111827]">
+                                    No Active Restaurants
+                                </h3>
+                                <p className="mt-2 text-sm text-[#6B7280]">
+                                    Add your first restaurant to get started with POS integration
+                                </p>
+                                <Link
+                                    href="/admin/restaurants/new"
+                                    className="mt-6 inline-flex items-center px-4 py-2.5 bg-green-500 text-white font-medium rounded-lg hover:bg-green-600 transition-all"
+                                >
+                                    <BuildingStorefrontIcon className="mr-2 h-5 w-5" />
+                                    Add Restaurant
+                                </Link>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </SmartLayout>
+    )
+}
+
+export default POSIntegration

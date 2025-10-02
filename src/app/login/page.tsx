@@ -27,6 +27,7 @@ export default function Login() {
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
     const [languageDropdownOpen, setLanguageDropdownOpen] = useState(false)
+    const [mounted, setMounted] = useState(false)
 
     const languages = [
         { code: 'nl', name: 'Nederlands' },
@@ -35,6 +36,7 @@ export default function Login() {
     ]
 
     useEffect(() => {
+        setMounted(true)
         document.title = 'Login - Splitty'
     }, [])
 
@@ -59,9 +61,13 @@ export default function Login() {
         try {
             const result = await login(email, password)
 
-            if (result.success) {
-                // Используем replace вместо push для предотвращения возврата на login
-                router.replace('/restaurant/dashboard')
+            if (result.success && result.userType) {
+                // Редиректим в зависимости от типа пользователя
+                if (result.userType === 'super_admin') {
+                    router.replace('/admin/dashboard')
+                } else if (result.userType === 'restaurant') {
+                    router.replace('/restaurant/dashboard')
+                }
             } else {
                 setError(result.error || "Authorization error")
             }
@@ -74,6 +80,7 @@ export default function Login() {
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">
+            {mounted && (
             <div className="absolute top-6 right-6">
                 <div className="relative language-selector">
                     <button
@@ -103,7 +110,7 @@ export default function Login() {
                         </div>
                     )}
                 </div>
-            </div>
+            </div>)}
 
             <div className="flex-1 flex items-center justify-center px-6 py-12">
                 <div className="w-full max-w-md">

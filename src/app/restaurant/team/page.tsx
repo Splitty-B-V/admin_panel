@@ -1,7 +1,6 @@
 'use client'
 
 import {useState, useEffect, JSX, useRef} from 'react'
-import Layout from '@/components/restaurant/Layout'
 import { useAuth } from '@/contexts/AuthContext'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { Toast, useToast } from '@/components/restaurant/Toast'
@@ -40,6 +39,7 @@ import {
     TeamMemberPasswordChangeRequest,
     TeamStatsResponse,
 } from '@/types/team'
+import SmartLayout from '@/components/common/SmartLayout'
 
 interface ConfirmModalState {
     isOpen: boolean
@@ -352,19 +352,19 @@ export default function Team(): JSX.Element {
 
     if (loading) {
         return (
-            <Layout>
+            <SmartLayout>
                 <div className="min-h-screen bg-gray-50 flex items-center justify-center">
                     <div className="text-center">
                         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-500"></div>
                         <p className="mt-4 text-gray-600">Loading team data...</p>
                     </div>
                 </div>
-            </Layout>
+            </SmartLayout>
         )
     }
 
     return (
-        <Layout>
+        <SmartLayout>
             <div className="p-2 xs:p-3 sm:p-4 md:p-6">
                 {/* Header */}
                 <div className="mb-4 sm:mb-6 md:mb-8">
@@ -1103,6 +1103,6 @@ export default function Team(): JSX.Element {
                     confirmationPlaceholder={confirmModal.confirmationPlaceholder || 'Type ter bevestiging'}
                 />
             </div>
-        </Layout>
+        </SmartLayout>
     )
 }

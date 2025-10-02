@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import Layout from '@/components/restaurant/Layout'
 import { useAuth } from '@/contexts/AuthContext'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { getRecentPayments } from '@/lib/api'
@@ -12,6 +11,7 @@ import {
     MagnifyingGlassIcon,
     ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline'
+import SmartLayout from '@/components/common/SmartLayout'
 
 interface Payment {
     id: string
@@ -231,7 +231,7 @@ export default function PaymentHistory() {
     // Loading state
     if (loading && payments.length === 0) {
         return (
-            <Layout>
+            <SmartLayout>
                 <div className="p-6">
                     <div className="flex items-center justify-center h-64">
                         <div className="text-center">
@@ -240,14 +240,14 @@ export default function PaymentHistory() {
                         </div>
                     </div>
                 </div>
-            </Layout>
+            </SmartLayout>
         )
     }
 
     // Error state
     if (error && payments.length === 0) {
         return (
-            <Layout>
+            <SmartLayout>
                 <div className="p-6">
                     <div className="flex items-center justify-center h-64">
                         <div className="text-center">
@@ -261,12 +261,12 @@ export default function PaymentHistory() {
                         </div>
                     </div>
                 </div>
-            </Layout>
+            </SmartLayout>
         )
     }
 
     return (
-        <Layout>
+        <SmartLayout>
             <div className="p-3 sm:p-4 md:p-6">
                 {/* Header */}
                 <div className="mb-6">
@@ -571,6 +571,6 @@ export default function PaymentHistory() {
                     )}
                 </div>
             </div>
-        </Layout>
+        </SmartLayout>
     )
 }

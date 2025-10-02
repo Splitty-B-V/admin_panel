@@ -15,7 +15,6 @@ interface LanguageContextType {
   availableLanguages: LanguageOption[]
 }
 
-// Определяем доступные языки на основе ваших локалей
 const AVAILABLE_LANGUAGES: LanguageOption[] = [
   { code: 'nl', name: 'Nederlands' },
   { code: 'en', name: 'English' },
@@ -25,7 +24,7 @@ const AVAILABLE_LANGUAGES: LanguageOption[] = [
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined)
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocale] = useState('nl')
+  const [locale, setLocale] = useState('nl') // Дефолт для сервера
   const [isClient, setIsClient] = useState(false)
 
   useEffect(() => {
@@ -40,11 +39,13 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     }
   }, [locale, isClient])
 
-  const t = (key: string) => translate(key, locale)
+  // Используем дефолтный язык до загрузки клиента
+  const effectiveLocale = isClient ? locale : 'nl'
+  const t = (key: string) => translate(key, effectiveLocale)
 
   return (
       <LanguageContext.Provider value={{
-        locale,
+        locale: effectiveLocale, // Возвращаем эффективный locale
         setLocale,
         t,
         availableLanguages: AVAILABLE_LANGUAGES

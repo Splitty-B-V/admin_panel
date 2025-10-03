@@ -92,7 +92,7 @@ async function completePOSStep(restaurantId: number, data: any) {
 }
 
 async function completeQRStandsStep(restaurantId: number, data: any) {
-    const response = await fetch(`${API_BASE_URL}/super_admin/restaurants/${restaurantId}/onboarding/step/4/qr-stands`, {
+    const response = await fetch(`${API_BASE_URL}/super_admin/restaurants/${restaurantId}/onboarding/qr/configure`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(data)
@@ -204,36 +204,16 @@ export default function SuperAdminOnboardingPage() {
         environment: 'production',
         is_active: true
     })
+
     const [qrStandData, setQrStandData] = useState({
         domain: '',
-        selected_design: '',
-        table_count: '',
-        table_sections: {
-            bar: '',
-            binnen: '',
-            terras: '',
-            lounge: ''
-        },
-        table_numbers_raw: {
-            bar: '',
-            binnen: '',
-            terras: '',
-            lounge: ''
-        },
-        table_numbers: {
-            bar: [],
-            binnen: [],
-            terras: [],
-            lounge: []
-        },
-        section_designs: {
-            bar: null,
-            binnen: null,
-            terras: null,
-            lounge: null
-        },
-        notes: ''
+        notes: '',
+        selected_tables: {}
     })
+    const [tableSections, setTableSections] = useState([
+        { id: 1, name: 'Inside', table_numbers: '', selected_design: 1 }
+    ])
+
     const [googleReviewData, setGoogleReviewData] = useState<any>({
         place_id: '',
         review_link: ''
@@ -243,6 +223,9 @@ export default function SuperAdminOnboardingPage() {
         configured: false,
         group_link: ''
     })
+    const [domainChecking, setDomainChecking] = useState(false)
+    const [domainStatus, setDomainStatus] = useState(null) // null | 'available' | 'taken'
+    const [domainMessage, setDomainMessage] = useState('')
 
     // Personnel form states
     const [showPersonForm, setShowPersonForm] = useState(false)
@@ -364,6 +347,85 @@ export default function SuperAdminOnboardingPage() {
         }
     }
 
+    // NEW: Unified step handler that saves and moves to next step
+    const handleNextStep = async (stepNumber: number) => {
+        try {
+            setSaving(true)
+            setError(null)
+
+            switch (stepNumber) {
+                case 1:
+                    if (personnelData.length === 0) {
+                        setError('Please add at least one team member')
+                        return
+                    }
+                    await completePersonnelStep(restaurantId, { personnel: personnelData })
+                    break
+                case 3:
+                    if (!posData.pos_type || !posData.username || !posData.password || !posData.base_url) {
+                        setError('Please fill in all required POS fields')
+                        return
+                    }
+                    await completePOSStep(restaurantId, posData)
+                    break
+                case 4:
+                    if (!qrStandData.domain.trim()) {
+                        setError('Please enter a domain name')
+                        return
+                    }
+                    if (domainStatus !== 'available') {
+                        setError('Please check domain availability first')
+                        return
+                    }
+                    const hasValidTables = tableSections.some(section => {
+                        const numbers = section.table_numbers.split(',')
+                            .map(n => parseInt(n.trim()))
+                            .filter(n => !isNaN(n) && n > 0)
+                        return numbers.length > 0
+                    })
+                    if (!hasValidTables) {
+                        setError('Please specify at least one table number')
+                        return
+                    }
+                    const selected_tables = {}
+                    tableSections.forEach(section => {
+                        if (section.table_numbers.trim()) {
+                            const table_numbers = section.table_numbers.split(',')
+                                .map(n => parseInt(n.trim()))
+                                .filter(n => !isNaN(n) && n > 0)
+
+                            if (table_numbers.length > 0) {
+                                selected_tables[section.name.toLowerCase().replace(/\s+/g, '_')] = {
+                                    table_numbers,
+                                    selected_design: section.selected_design
+                                }
+                            }
+                        }
+                    })
+                    await completeQRStandsStep(restaurantId, {
+                        domain: qrStandData.domain,
+                        notes: qrStandData.notes,
+                        selected_tables
+                    })
+                    break
+                case 5:
+                    if (!googleReviewData.place_id) {
+                        setError('Please provide a Google Place ID')
+                        return
+                    }
+                    await completeGoogleReviewsStep(restaurantId, googleReviewData)
+                    break
+            }
+
+            await refreshProgress()
+            setCurrentStep(stepNumber + 1)
+        } catch (err: any) {
+            setError(err.message || `Failed to save step ${stepNumber} data`)
+        } finally {
+            setSaving(false)
+        }
+    }
+
     // Personnel handling
     const handleAddPerson = async () => {
         // Reset errors
@@ -420,26 +482,6 @@ export default function SuperAdminOnboardingPage() {
         setPersonnelData(updatedPersonnelData)
     }
 
-    // Step completion handlers
-    const handleCompletePersonnelStep = async () => {
-        if (personnelData.length === 0) {
-            setError('Please add at least one team member')
-            return
-        }
-
-        try {
-            setSaving(true)
-            setError(null)
-            await completePersonnelStep(restaurantId, { personnel: personnelData })
-            await refreshProgress()
-            setCurrentStep(2)
-        } catch (err: any) {
-            setError(err.message || 'Failed to save personnel data')
-        } finally {
-            setSaving(false)
-        }
-    }
-
     const handleStripeConnect = async () => {
         try {
             setStripeConnecting(true)
@@ -485,83 +527,72 @@ export default function SuperAdminOnboardingPage() {
         }
     }
 
-    const handleCompletePOSStep = async () => {
-        if (!posData.pos_type || !posData.username || !posData.password || !posData.base_url) {
-            setError('Please fill in all required POS fields')
+    async function checkDomainAvailability(restaurantId: number, domain: string) {
+        const response = await fetch(`${API_BASE_URL}/super_admin/restaurants/${restaurantId}/onboarding/qr/check-domain`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ domain })
+        })
+        if (!response.ok) throw new Error('Failed to check domain availability')
+        return response.json()
+    }
+
+    async function configureQRStands(restaurantId: number, data: any) {
+        const response = await fetch(`${API_BASE_URL}/super_admin/restaurants/${restaurantId}/onboarding/qr/configure`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify(data)
+        })
+        if (!response.ok) throw new Error('Failed to configure QR stands')
+        return response.json()
+    }
+
+    const addTableSection = () => {
+        const newId = Math.max(...tableSections.map(s => s.id)) + 1
+        setTableSections([...tableSections, {
+            id: newId,
+            name: `Section ${newId}`,
+            table_numbers: '',
+            selected_design: 1
+        }])
+    }
+
+    const removeTableSection = (id: number) => {
+        if (tableSections.length > 1) {
+            setTableSections(tableSections.filter(s => s.id !== id))
+        }
+    }
+
+    const updateTableSection = (id: number, field: string, value: any) => {
+        setTableSections(tableSections.map(section =>
+            section.id === id ? { ...section, [field]: value } : section
+        ))
+    }
+
+    const handleCheckDomain = async () => {
+        if (!qrStandData.domain.trim()) {
+            setError('Please enter a domain name')
             return
         }
 
         try {
-            setSaving(true)
+            setDomainChecking(true)
             setError(null)
-            await completePOSStep(restaurantId, posData)
-            await refreshProgress()
-            setCurrentStep(4)
+
+            const result = await checkDomainAvailability(restaurantId, qrStandData.domain)
+
+            // @ts-ignore
+            setDomainStatus(result.available ? 'available' : 'taken')
+            setDomainMessage(result.message)
         } catch (err: any) {
-            setError(err.message || 'Failed to save POS configuration')
+            setError(err.message || 'Failed to check domain availability')
         } finally {
-            setSaving(false)
+            setDomainChecking(false)
         }
     }
 
-    const handleCompleteQRStandsStep = async () => {
-        // Парси сырые номера в массивы
-        const tableNumbers = {
-            bar: qrStandData.table_numbers_raw.bar.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n) && n > 0),
-            binnen: qrStandData.table_numbers_raw.binnen.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n) && n > 0),
-            terras: qrStandData.table_numbers_raw.terras.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n) && n > 0),
-            lounge: qrStandData.table_numbers_raw.lounge.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n) && n > 0)
-        }
-
-        const totalTables = Object.values(tableNumbers).reduce((sum, arr) => sum + arr.length, 0)
-
-        if (totalTables === 0) {
-            setError('Please specify at least one table')
-            return
-        }
-
-        try {
-            setSaving(true)
-            setError(null)
-            await fetch(`${API_BASE_URL}/super_admin/restaurants/${restaurantId}/onboarding/qr/configure`, {
-                method: 'POST',
-                headers: getAuthHeaders(),
-                body: JSON.stringify({
-                    domain: qrStandData.domain,
-                    table_numbers: tableNumbers,
-                    section_designs: qrStandData.section_designs,
-                    notes: qrStandData.notes
-                })
-            })
-            await refreshProgress()
-            setCurrentStep(5)
-        } catch (err: any) {
-            setError(err.message || 'Failed to save QR stands configuration')
-        } finally {
-            setSaving(false)
-        }
-    }
-
-    const handleCompleteGoogleReviewsStep = async () => {
-        if (!googleReviewData.place_id) {
-            setError('Please provide a Google Place ID')
-            return
-        }
-
-        try {
-            setSaving(true)
-            setError(null)
-            await completeGoogleReviewsStep(restaurantId, googleReviewData)
-            await refreshProgress()
-            setCurrentStep(6)
-        } catch (err: any) {
-            setError(err.message || 'Failed to save Google Reviews configuration')
-        } finally {
-            setSaving(false)
-        }
-    }
-
-    const handleCreateTelegramGroup = async () => {
+    // NEW: Final onboarding completion - only for Telegram step
+    const handleCompleteOnboarding = async () => {
         if (!telegramData.restaurant_name) {
             setError('Please provide a restaurant name')
             return
@@ -573,14 +604,8 @@ export default function SuperAdminOnboardingPage() {
 
             const result = await completeTelegramStep(restaurantId, telegramData)
 
-            if (result.completed) {
-                setTelegramGroupLink(result.data?.group_link || '')
-                await refreshProgress()
-
-                // Show success and redirect to restaurants list
-                alert('Onboarding completed successfully! Telegram group created.')
-                router.push('/restaurants')
-            }
+            router.push('/admin/restaurants')
+            // }
         } catch (err: any) {
             setError(err.message || 'Failed to create Telegram group')
         } finally {
@@ -854,6 +879,7 @@ export default function SuperAdminOnboardingPage() {
                             </div>
                         </div>
 
+                        {/* UPDATED BUTTONS - Next Step instead of Complete Step */}
                         <div className="flex justify-between items-center">
                             <button
                                 onClick={() => handleSkipStep(1)}
@@ -863,11 +889,11 @@ export default function SuperAdminOnboardingPage() {
                                 Skip Step
                             </button>
                             <button
-                                onClick={handleCompletePersonnelStep}
+                                onClick={() => handleNextStep(1)}
                                 disabled={saving || personnelData.length === 0}
                                 className="px-8 py-3 bg-gradient-to-r from-[#2BE89A] to-[#4FFFB0] text-black font-semibold rounded-lg hover:opacity-90 transition disabled:opacity-50"
                             >
-                                {saving ? 'Saving...' : 'Complete Step'}
+                                {saving ? 'Saving...' : 'Next Step'}
                             </button>
                         </div>
                     </div>
@@ -952,6 +978,7 @@ export default function SuperAdminOnboardingPage() {
                             </div>
                         </div>
 
+                        {/* UPDATED BUTTONS - Next Step instead of Continue */}
                         <div className="flex justify-between items-center">
                             <button
                                 onClick={() => handleSkipStep(2)}
@@ -965,7 +992,7 @@ export default function SuperAdminOnboardingPage() {
                                     onClick={() => setCurrentStep(3)}
                                     className="px-8 py-3 bg-gradient-to-r from-[#2BE89A] to-[#4FFFB0] text-black font-semibold rounded-lg hover:opacity-90 transition"
                                 >
-                                    Continue
+                                    Next Step
                                 </button>
                             )}
                         </div>
@@ -1102,6 +1129,7 @@ export default function SuperAdminOnboardingPage() {
                             </div>
                         </div>
 
+                        {/* UPDATED BUTTONS - Next Step instead of Complete Step */}
                         <div className="flex justify-between items-center">
                             <button
                                 onClick={() => handleSkipStep(3)}
@@ -1111,11 +1139,11 @@ export default function SuperAdminOnboardingPage() {
                                 Skip Step
                             </button>
                             <button
-                                onClick={handleCompletePOSStep}
+                                onClick={() => handleNextStep(3)}
                                 disabled={saving}
                                 className="px-8 py-3 bg-gradient-to-r from-[#2BE89A] to-[#4FFFB0] text-black font-semibold rounded-lg hover:opacity-90 transition disabled:opacity-50"
                             >
-                                {saving ? 'Saving...' : 'Complete Step'}
+                                {saving ? 'Saving...' : 'Next Step'}
                             </button>
                         </div>
                     </div>
@@ -1146,34 +1174,79 @@ export default function SuperAdminOnboardingPage() {
                                     <div className="space-y-3">
                                         <div>
                                             <label className="block text-sm text-gray-600 mb-2">Domain Name (for QR codes)</label>
-                                            <input
-                                                type="text"
-                                                value={qrStandData.domain || ''}
-                                                onChange={(e) => {
-                                                    const domain = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')
-                                                    setQrStandData({...qrStandData, domain: domain})
-                                                }}
-                                                placeholder="restaurant-name"
-                                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A] transition-colors"
-                                            />
+                                            <div className="flex space-x-3">
+                                                <div className="flex-1">
+                                                    <input
+                                                        type="text"
+                                                        value={qrStandData.domain}
+                                                        onChange={(e) => {
+                                                            const domain = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')
+                                                            setQrStandData({...qrStandData, domain})
+                                                            setDomainStatus(null) // Reset status when domain changes
+                                                            setDomainMessage('')
+                                                        }}
+                                                        placeholder="restaurant-name"
+                                                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A] transition-colors"
+                                                    />
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleCheckDomain}
+                                                    disabled={domainChecking || !qrStandData.domain.trim()}
+                                                    className="px-4 py-2 bg-[#2BE89A] text-black font-medium rounded-md hover:bg-[#2BE89A]/90 transition disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                                                >
+                                                    {domainChecking ? (
+                                                        <>
+                                                            <ArrowPathIcon className="h-4 w-4 animate-spin inline mr-1" />
+                                                            Checking...
+                                                        </>
+                                                    ) : (
+                                                        'Check Domain'
+                                                    )}
+                                                </button>
+                                            </div>
+
+                                            {/* Domain Status */}
+                                            {domainStatus && (
+                                                <div className={`mt-2 p-3 rounded-md ${
+                                                    domainStatus === 'available'
+                                                        ? 'bg-green-50 border border-green-200'
+                                                        : 'bg-red-50 border border-red-200'
+                                                }`}>
+                                                    <div className="flex items-center">
+                                                        {domainStatus === 'available' ? (
+                                                            <CheckCircleIcon className="h-4 w-4 text-green-600 mr-2" />
+                                                        ) : (
+                                                            <XMarkIcon className="h-4 w-4 text-red-600 mr-2" />
+                                                        )}
+                                                        <p className={`text-sm ${
+                                                            domainStatus === 'available' ? 'text-green-700' : 'text-red-700'
+                                                        }`}>
+                                                            {domainMessage}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            )}
+
                                             <p className="text-xs text-gray-500 mt-1">
-                                                Only lowercase letters, numbers, and hyphens allowed
+                                                Only lowercase letters, numbers, and hyphens allowed. Final URL will be: {qrStandData.domain || 'your-domain'}.splitty.nl
                                             </p>
                                         </div>
                                     </div>
                                 </div>
 
+                                {/* Available Designs */}
                                 <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
                                     <label className="block text-xs font-medium text-gray-700 mb-4 uppercase tracking-wider">
                                         Available Designs
                                     </label>
                                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                                         {[
-                                            { id: 'design1', name: 'Design 1', image: '/images/qr-design-1.png' },
-                                            { id: 'design2', name: 'Design 2', image: '/images/qr-design-2.png' },
-                                            { id: 'design3', name: 'Design 3', image: '/images/qr-design-3.png' },
-                                            { id: 'design4', name: 'Design 4', image: '/images/qr-design-4.png' }
-                                        ].map((design, index) => (
+                                            { id: 1, name: 'Design 1', image: '/images/qr-design-1.png' },
+                                            { id: 2, name: 'Design 2', image: '/images/qr-design-2.png' },
+                                            { id: 3, name: 'Design 3', image: '/images/qr-design-3.png' },
+                                            { id: 4, name: 'Design 4', image: '/images/qr-design-4.png' }
+                                        ].map((design) => (
                                             <div
                                                 key={design.id}
                                                 className="p-4 rounded-lg border border-gray-200 bg-white"
@@ -1194,284 +1267,80 @@ export default function SuperAdminOnboardingPage() {
                                     </p>
                                 </div>
 
-                                {/* Table Configuration by Section */}
+                                {/* Dynamic Table Sections */}
                                 <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
-                                    <label className="block text-xs font-medium text-gray-700 mb-4 uppercase tracking-wider">
-                                        Table Configuration by Section
-                                    </label>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <label className="block text-xs font-medium text-gray-700 uppercase tracking-wider">
+                                            Table Sections
+                                        </label>
+                                        <button
+                                            type="button"
+                                            onClick={addTableSection}
+                                            className="inline-flex items-center px-3 py-1.5 bg-[#2BE89A] text-black text-xs font-medium rounded-md hover:bg-[#2BE89A]/90 transition"
+                                        >
+                                            <span className="text-lg mr-1">+</span>
+                                            Add Section
+                                        </button>
+                                    </div>
 
-                                    <div className="space-y-6">
-                                        {/* Bar Section */}
-                                        <div className="space-y-3">
-                                            <div className="flex items-center justify-between">
-                                                <label className="block text-sm font-medium text-gray-700">Bar Tables</label>
-                                                <span className="text-xs text-gray-500">
-                    {qrStandData.table_numbers?.bar?.length || 0} tables
-                  </span>
-                                            </div>
+                                    <div className="space-y-4">
+                                        {tableSections.map((section, index) => (
+                                            <div key={section.id} className="bg-white rounded-lg p-4 border border-gray-200">
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <div className="flex-1 mr-4">
+                                                        <label className="block text-xs text-gray-600 mb-1.5">Section Name</label>
+                                                        <input
+                                                            type="text"
+                                                            value={section.name}
+                                                            onChange={(e) => updateTableSection(section.id, 'name', e.target.value)}
+                                                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-gray-900 text-sm focus:outline-none focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A] transition-colors"
+                                                            placeholder="Section name"
+                                                        />
+                                                    </div>
 
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div>
-                                                    <label className="block text-xs text-gray-600 mb-1.5">Number of Tables</label>
-                                                    <input
-                                                        type="number"
-                                                        value={qrStandData.table_sections?.bar || ''}
-                                                        onChange={(e) => {
-                                                            setQrStandData({
-                                                                ...qrStandData,
-                                                                table_sections: {...qrStandData.table_sections, bar: e.target.value}
-                                                            })
-                                                        }}
-                                                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A] transition-colors"
-                                                        placeholder="0"
-                                                        min="0"
-                                                        max="50"
-                                                    />
+                                                    {tableSections.length > 1 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeTableSection(section.id)}
+                                                            className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-md transition"
+                                                        >
+                                                            <TrashIcon className="h-4 w-4" />
+                                                        </button>
+                                                    )}
                                                 </div>
 
-                                                <div>
-                                                    <label className="block text-xs text-gray-600 mb-1.5">Design</label>
-                                                    <select
-                                                        value={qrStandData.section_designs?.bar || ''}
-                                                        onChange={(e) => setQrStandData({
-                                                            ...qrStandData,
-                                                            section_designs: {...qrStandData.section_designs, bar: parseInt(e.target.value)}
-                                                        })}
-                                                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-gray-900 text-sm focus:outline-none focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A] transition-colors"
-                                                    >
-                                                        <option value="">Select Design</option>
-                                                        <option value={1}>Design 1</option>
-                                                        <option value={2}>Design 2</option>
-                                                        <option value={3}>Design 3</option>
-                                                        <option value={4}>Design 4</option>
-                                                    </select>
-                                                </div>
-                                            </div>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label className="block text-xs text-gray-600 mb-1.5">Table Numbers (comma separated)</label>
+                                                        <input
+                                                            type="text"
+                                                            value={section.table_numbers}
+                                                            onChange={(e) => updateTableSection(section.id, 'table_numbers', e.target.value)}
+                                                            placeholder="1, 2, 3, 10, 15"
+                                                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A] transition-colors"
+                                                        />
+                                                        <p className="text-xs text-gray-500 mt-1">
+                                                            Tables: {section.table_numbers ?
+                                                            section.table_numbers.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n) && n > 0).length : 0}
+                                                        </p>
+                                                    </div>
 
-                                            {/* Table Numbers Input */}
-                                            {parseInt(qrStandData.table_sections?.bar || '0') > 0 && (
-                                                <div>
-                                                    <label className="block text-xs text-gray-600 mb-2">Table Numbers (comma separated)</label>
-                                                    <input
-                                                        type="text"
-                                                        value={qrStandData.table_numbers_raw?.bar || ''}
-                                                        onChange={(e) => {
-                                                            const rawValue = e.target.value
-                                                            setQrStandData({
-                                                                ...qrStandData,
-                                                                table_numbers_raw: {...qrStandData.table_numbers_raw, bar: rawValue}
-                                                            })
-                                                        }}
-                                                        placeholder="1, 2, 3, 50, 100"
-                                                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A] transition-colors"
-                                                    />
-                                                    <p className="text-xs text-gray-500 mt-1">
-                                                        Enter specific table numbers for this section
-                                                    </p>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Inside Section */}
-                                        <div className="space-y-3">
-                                            <div className="flex items-center justify-between">
-                                                <label className="block text-sm font-medium text-gray-700">Inside Tables</label>
-                                                <span className="text-xs text-gray-500">
-                    {qrStandData.table_numbers?.binnen?.length || 0} tables
-                  </span>
-                                            </div>
-
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div>
-                                                    <label className="block text-xs text-gray-600 mb-1.5">Number of Tables</label>
-                                                    <input
-                                                        type="number"
-                                                        value={qrStandData.table_sections?.binnen || ''}
-                                                        onChange={(e) => {
-                                                            setQrStandData({
-                                                                ...qrStandData,
-                                                                table_sections: {...qrStandData.table_sections, binnen: e.target.value}
-                                                            })
-                                                        }}
-                                                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A] transition-colors"
-                                                        placeholder="0"
-                                                        min="0"
-                                                        max="50"
-                                                    />
-                                                </div>
-
-                                                <div>
-                                                    <label className="block text-xs text-gray-600 mb-1.5">Design</label>
-                                                    <select
-                                                        value={qrStandData.section_designs?.binnen || ''}
-                                                        onChange={(e) => setQrStandData({
-                                                            ...qrStandData,
-                                                            section_designs: {...qrStandData.section_designs, binnen: parseInt(e.target.value)}
-                                                        })}
-                                                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-gray-900 text-sm focus:outline-none focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A] transition-colors"
-                                                    >
-                                                        <option value="">Select Design</option>
-                                                        <option value={1}>Design 1</option>
-                                                        <option value={2}>Design 2</option>
-                                                        <option value={3}>Design 3</option>
-                                                        <option value={4}>Design 4</option>
-                                                    </select>
+                                                    <div>
+                                                        <label className="block text-xs text-gray-600 mb-1.5">Design</label>
+                                                        <select
+                                                            value={section.selected_design}
+                                                            onChange={(e) => updateTableSection(section.id, 'selected_design', parseInt(e.target.value))}
+                                                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-gray-900 text-sm focus:outline-none focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A] transition-colors"
+                                                        >
+                                                            <option value={1}>Design 1</option>
+                                                            <option value={2}>Design 2</option>
+                                                            <option value={3}>Design 3</option>
+                                                            <option value={4}>Design 4</option>
+                                                        </select>
+                                                    </div>
                                                 </div>
                                             </div>
-
-                                            {parseInt(qrStandData.table_sections?.binnen || '0') > 0 && (
-                                                <div>
-                                                    <label className="block text-xs text-gray-600 mb-2">Table Numbers (comma separated)</label>
-                                                    <input
-                                                        type="text"
-                                                        value={qrStandData.table_numbers_raw?.binnen || ''}
-                                                        onChange={(e) => {
-                                                            const rawValue = e.target.value
-                                                            setQrStandData({
-                                                                ...qrStandData,
-                                                                table_numbers_raw: {...qrStandData.table_numbers_raw, binnen: rawValue}
-                                                            })
-                                                        }}
-                                                        placeholder="10, 11, 12, 20, 25"
-                                                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A] transition-colors"
-                                                    />
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Terrace Section */}
-                                        <div className="space-y-3">
-                                            <div className="flex items-center justify-between">
-                                                <label className="block text-sm font-medium text-gray-700">Terrace Tables</label>
-                                                <span className="text-xs text-gray-500">
-                    {qrStandData.table_numbers?.terras?.length || 0} tables
-                  </span>
-                                            </div>
-
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div>
-                                                    <label className="block text-xs text-gray-600 mb-1.5">Number of Tables</label>
-                                                    <input
-                                                        type="number"
-                                                        value={qrStandData.table_sections?.terras || ''}
-                                                        onChange={(e) => {
-                                                            setQrStandData({
-                                                                ...qrStandData,
-                                                                table_sections: {...qrStandData.table_sections, terras: e.target.value}
-                                                            })
-                                                        }}
-                                                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A] transition-colors"
-                                                        placeholder="0"
-                                                        min="0"
-                                                        max="50"
-                                                    />
-                                                </div>
-
-                                                <div>
-                                                    <label className="block text-xs text-gray-600 mb-1.5">Design</label>
-                                                    <select
-                                                        value={qrStandData.section_designs?.terras || ''}
-                                                        onChange={(e) => setQrStandData({
-                                                            ...qrStandData,
-                                                            section_designs: {...qrStandData.section_designs, terras: parseInt(e.target.value)}
-                                                        })}
-                                                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-gray-900 text-sm focus:outline-none focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A] transition-colors"
-                                                    >
-                                                        <option value="">Select Design</option>
-                                                        <option value={1}>Design 1</option>
-                                                        <option value={2}>Design 2</option>
-                                                        <option value={3}>Design 3</option>
-                                                        <option value={4}>Design 4</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-
-                                            {parseInt(qrStandData.table_sections?.terras || '0') > 0 && (
-                                                <div>
-                                                    <label className="block text-xs text-gray-600 mb-2">Table Numbers (comma separated)</label>
-                                                    <input
-                                                        type="text"
-                                                        value={qrStandData.table_numbers_raw?.terras || ''}
-                                                        onChange={(e) => {
-                                                            const rawValue = e.target.value
-                                                            setQrStandData({
-                                                                ...qrStandData,
-                                                                table_numbers_raw: {...qrStandData.table_numbers_raw, terras: rawValue}
-                                                            })
-                                                        }}
-                                                        placeholder="101, 102, 103, 200"
-                                                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A] transition-colors"
-                                                    />
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Lounge Section */}
-                                        <div className="space-y-3">
-                                            <div className="flex items-center justify-between">
-                                                <label className="block text-sm font-medium text-gray-700">Lounge Tables</label>
-                                                <span className="text-xs text-gray-500">
-                    {qrStandData.table_numbers?.lounge?.length || 0} tables
-                  </span>
-                                            </div>
-
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div>
-                                                    <label className="block text-xs text-gray-600 mb-1.5">Number of Tables</label>
-                                                    <input
-                                                        type="number"
-                                                        value={qrStandData.table_sections?.lounge || ''}
-                                                        onChange={(e) => {
-                                                            setQrStandData({
-                                                                ...qrStandData,
-                                                                table_sections: {...qrStandData.table_sections, lounge: e.target.value}
-                                                            })
-                                                        }}
-                                                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A] transition-colors"
-                                                        placeholder="0"
-                                                        min="0"
-                                                        max="50"
-                                                    />
-                                                </div>
-
-                                                <div>
-                                                    <label className="block text-xs text-gray-600 mb-1.5">Design</label>
-                                                    <select
-                                                        value={qrStandData.section_designs?.lounge || ''}
-                                                        onChange={(e) => setQrStandData({
-                                                            ...qrStandData,
-                                                            section_designs: {...qrStandData.section_designs, lounge: parseInt(e.target.value)}
-                                                        })}
-                                                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-gray-900 text-sm focus:outline-none focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A] transition-colors"
-                                                    >
-                                                        <option value="">Select Design</option>
-                                                        <option value={1}>Design 1</option>
-                                                        <option value={2}>Design 2</option>
-                                                        <option value={3}>Design 3</option>
-                                                        <option value={4}>Design 4</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-
-                                            {parseInt(qrStandData.table_sections?.lounge || '0') > 0 && (
-                                                <div>
-                                                    <label className="block text-xs text-gray-600 mb-2">Table Numbers (comma separated)</label>
-                                                    <input
-                                                        type="text"
-                                                        value={qrStandData.table_numbers_raw?.lounge || ''}
-                                                        onChange={(e) => {
-                                                            const rawValue = e.target.value
-                                                            setQrStandData({
-                                                                ...qrStandData,
-                                                                table_numbers_raw: {...qrStandData.table_numbers_raw, lounge: rawValue}
-                                                            })
-                                                        }}
-                                                        placeholder="301, 302, 400, 500"
-                                                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A] transition-colors"
-                                                    />
-                                                </div>
-                                            )}
-                                        </div>
+                                        ))}
                                     </div>
 
                                     {/* Total Calculator */}
@@ -1479,13 +1348,12 @@ export default function SuperAdminOnboardingPage() {
                                         <div className="flex items-center justify-between">
                                             <span className="text-sm font-medium text-gray-700">Total Tables</span>
                                             <span className="text-lg font-bold text-[#2BE89A]">
-                  {[
-                      qrStandData.table_numbers?.bar?.length || 0,
-                      qrStandData.table_numbers?.binnen?.length || 0,
-                      qrStandData.table_numbers?.terras?.length || 0,
-                      qrStandData.table_numbers?.lounge?.length || 0
-                  ].reduce((sum, count) => sum + count, 0)}
-                </span>
+                                    {tableSections.reduce((total, section) => {
+                                        const count = section.table_numbers ?
+                                            section.table_numbers.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n) && n > 0).length : 0
+                                        return total + count
+                                    }, 0)}
+                                </span>
                                         </div>
                                     </div>
                                 </div>
@@ -1506,6 +1374,7 @@ export default function SuperAdminOnboardingPage() {
                             </div>
                         </div>
 
+                        {/* UPDATED BUTTONS - Next Step instead of Complete Step */}
                         <div className="flex justify-between items-center">
                             <button
                                 onClick={() => handleSkipStep(4)}
@@ -1515,11 +1384,11 @@ export default function SuperAdminOnboardingPage() {
                                 Skip Step
                             </button>
                             <button
-                                onClick={handleCompleteQRStandsStep}
-                                disabled={saving || !qrStandData.domain}
+                                onClick={() => handleNextStep(4)}
+                                disabled={saving || !qrStandData.domain || domainStatus !== 'available'}
                                 className="px-8 py-3 bg-gradient-to-r from-[#2BE89A] to-[#4FFFB0] text-black font-semibold rounded-lg hover:opacity-90 transition disabled:opacity-50"
                             >
-                                {saving ? 'Saving...' : 'Complete Step'}
+                                {saving ? 'Saving...' : 'Next Step'}
                             </button>
                         </div>
                     </div>
@@ -1634,6 +1503,7 @@ export default function SuperAdminOnboardingPage() {
                             </div>
                         </div>
 
+                        {/* UPDATED BUTTONS - Next Step instead of Complete Step */}
                         <div className="flex justify-between items-center">
                             <button
                                 onClick={() => handleSkipStep(5)}
@@ -1643,11 +1513,11 @@ export default function SuperAdminOnboardingPage() {
                                 Skip Step
                             </button>
                             <button
-                                onClick={handleCompleteGoogleReviewsStep}
+                                onClick={() => handleNextStep(5)}
                                 disabled={saving || !googleReviewData.place_id}
                                 className="px-8 py-3 bg-gradient-to-r from-[#2BE89A] to-[#4FFFB0] text-black font-semibold rounded-lg hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                {saving ? 'Saving...' : 'Complete Step'}
+                                {saving ? 'Saving...' : 'Next Step'}
                             </button>
                         </div>
                     </div>
@@ -1718,24 +1588,6 @@ export default function SuperAdminOnboardingPage() {
                                     </ul>
                                 </div>
 
-                                <button
-                                    onClick={handleCreateTelegramGroup}
-                                    disabled={telegramCreating || !telegramData.restaurant_name}
-                                    className="w-full px-4 py-3 bg-[#0088cc] text-white font-medium rounded-lg hover:bg-[#0077b5] transition disabled:opacity-50 flex items-center justify-center"
-                                >
-                                    {telegramCreating ? (
-                                        <>
-                                            <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
-                                            Creating Telegram Group...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <ChatBubbleLeftRightIcon className="h-4 w-4 mr-2" />
-                                            Create Telegram Group & Complete Onboarding
-                                        </>
-                                    )}
-                                </button>
-
                                 <div className="bg-[#2BE89A]/5 rounded-lg p-4 border border-[#2BE89A]/20">
                                     <p className="text-sm text-gray-700">
                                         <CheckCircleIcon className="h-5 w-5 text-[#2BE89A] inline mr-2" />
@@ -1745,15 +1597,32 @@ export default function SuperAdminOnboardingPage() {
                             </div>
                         </div>
 
+                        {/* FINAL STEP BUTTONS - Submit & Complete Onboarding */}
                         <div className="flex justify-between items-center">
                             <button
                                 onClick={() => handleSkipStep(6)}
                                 disabled={saving}
                                 className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
                             >
-                                Skip Step
+                                Skip & Finish
                             </button>
-                            {/* No manual complete button - handled by Create Telegram Group button */}
+                            <button
+                                onClick={handleCompleteOnboarding}
+                                disabled={telegramCreating || !telegramData.restaurant_name}
+                                className="px-8 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold rounded-lg hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center"
+                            >
+                                {telegramCreating ? (
+                                    <>
+                                        <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
+                                        Completing Onboarding...
+                                    </>
+                                ) : (
+                                    <>
+                                        <ChatBubbleLeftRightIcon className="h-4 w-4 mr-2" />
+                                        Submit & Complete Onboarding
+                                    </>
+                                )}
+                            </button>
                         </div>
                     </div>
                 )
@@ -1797,255 +1666,255 @@ export default function SuperAdminOnboardingPage() {
 
     return (
         <SmartLayout>
-        <div className="min-h-screen bg-gray-50">
-            {/* Error Banner */}
-            {error && (
-                <div className="bg-red-50 border-b border-red-200 px-6 py-3">
-                    <div className="flex items-center">
-                        <ExclamationTriangleIcon className="h-5 w-5 text-red-500 mr-2" />
-                        <p className="text-sm text-red-700">{error}</p>
-                        <button
-                            onClick={() => setError(null)}
-                            className="ml-auto p-1 text-red-500 hover:text-red-700"
-                        >
-                            <XMarkIcon className="h-4 w-4" />
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* Header */}
-            <div className="bg-white border-b border-gray-200 px-6 py-4">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                        <button
-                            onClick={() => router.push('/restaurants')}
-                            className="mr-4 p-2 text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-100 transition"
-                        >
-                            <ChevronLeftIcon className="h-5 w-5" />
-                        </button>
-                        <div>
-                            <h1 className="text-xl font-semibold text-gray-900">{restaurant.name} - Onboarding</h1>
-                            <p className="text-sm text-gray-600">
-                                Super Admin Setup • Step {currentStep} of 6
-                                {progress && ` • ${progress.completed_steps.length}/6 completed`}
-                            </p>
-                        </div>
-                    </div>
-                    {progress && (
-                        <div className="flex items-center space-x-4">
-                            <div className="text-right">
-                                <p className="text-sm font-medium text-gray-900">
-                                    {progress.completed_steps.length}/6 Steps
-                                </p>
-                                <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                    <div
-                                        className="h-full bg-[#2BE89A] transition-all duration-500"
-                                        style={{ width: `${(progress.completed_steps.length / 6) * 100}%` }}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            <div className="flex">
-                {/* Sidebar */}
-                <div className="w-80 bg-white border-r border-gray-200 min-h-screen">
-                    <div className="p-6">
-                        {/* Restaurant Info */}
-                        <div className="mb-6">
-                            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                                <div className="flex items-center mb-3">
-                                    <div className="w-10 h-10 bg-gradient-to-r from-[#2BE89A] to-[#4FFFB0] rounded-lg flex items-center justify-center mr-3">
-                                        <BuildingStorefrontIcon className="h-5 w-5 text-black" />
-                                    </div>
-                                    <div>
-                                        <h3 className="font-medium text-gray-900">{restaurant.name}</h3>
-                                        <p className="text-xs text-gray-500">{restaurant.city}</p>
-                                    </div>
-                                </div>
-                                {progress && (
-                                    <div className="pt-3 border-t border-gray-200">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className="text-xs font-medium text-gray-700">Progress</span>
-                                            <span className="text-xs font-semibold text-[#2BE89A]">
-                        {progress.completed_steps.length}/6
-                      </span>
-                                        </div>
-                                        <div className="w-full rounded-full h-2 bg-gray-200">
-                                            <div
-                                                className="bg-[#2BE89A] h-2 rounded-full transition-all duration-500"
-                                                style={{ width: `${(progress.completed_steps.length / 6) * 100}%` }}
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Steps */}
-                        <div className="space-y-2">
-                            {/* Welcome Step */}
+            <div className="min-h-screen bg-gray-50">
+                {/* Error Banner */}
+                {error && (
+                    <div className="bg-red-50 border-b border-red-200 px-6 py-3">
+                        <div className="flex items-center">
+                            <ExclamationTriangleIcon className="h-5 w-5 text-red-500 mr-2" />
+                            <p className="text-sm text-red-700">{error}</p>
                             <button
-                                onClick={() => {
-                                    setCurrentStep(0)
-                                    setShowWelcome(true)
-                                }}
-                                className={`w-full text-left rounded-lg transition-all duration-200 p-4 ${
-                                    currentStep === 0
-                                        ? 'bg-gradient-to-r from-[#2BE89A]/10 to-[#4FFFB0]/10 border-2 border-[#2BE89A] shadow-sm'
-                                        : 'bg-white border border-gray-200 hover:border-[#2BE89A]/50 hover:shadow-sm'
-                                }`}
+                                onClick={() => setError(null)}
+                                className="ml-auto p-1 text-red-500 hover:text-red-700"
                             >
-                                <div className="flex items-center">
-                                    <div className={`p-1.5 rounded-md mr-3 ${
-                                        currentStep === 0 ? 'bg-[#2BE89A]' : 'bg-[#2BE89A]/20'
-                                    }`}>
-                                        <RocketLaunchIcon className={`h-4 w-4 ${
-                                            currentStep === 0 ? 'text-black' : 'text-[#2BE89A]'
-                                        }`} />
-                                    </div>
-                                    <div>
-                                        <h3 className="font-semibold text-sm text-gray-900">Welcome</h3>
-                                        <p className="text-xs text-gray-500">Start restaurant setup</p>
-                                    </div>
-                                </div>
+                                <XMarkIcon className="h-4 w-4" />
                             </button>
-
-                            <div className="my-3 px-2">
-                                <div className="border-t border-gray-200"></div>
-                            </div>
-
-                            {/* Onboarding Steps */}
-                            {OnboardingSteps.map((step) => {
-                                const status = getStepStatus(step.id)
-                                const isClickable = status !== 'locked'
-
-                                return (
-                                    <button
-                                        key={step.id}
-                                        onClick={() => handleStepClick(step.id)}
-                                        disabled={!isClickable}
-                                        className={`w-full text-left p-4 rounded-lg transition-all duration-200 ${
-                                            status === 'current'
-                                                ? 'bg-white border-2 border-[#2BE89A] shadow-sm'
-                                                : status === 'completed'
-                                                    ? 'bg-white border border-gray-200 hover:border-[#2BE89A] hover:shadow-sm'
-                                                    : status === 'available'
-                                                        ? 'bg-white border border-gray-200 hover:border-gray-300 hover:shadow-sm'
-                                                        : 'bg-gray-50 border border-gray-200 opacity-50 cursor-not-allowed'
-                                        }`}
-                                    >
-                                        <div className="flex items-start">
-                                            <div className={`p-2 rounded-lg mr-3 transition-all ${
-                                                status === 'current'
-                                                    ? 'bg-[#2BE89A]'
-                                                    : status === 'completed'
-                                                        ? 'bg-[#2BE89A]/20'
-                                                        : status === 'available'
-                                                            ? 'bg-gray-100'
-                                                            : 'bg-gray-50'
-                                            }`}>
-                                                {status === 'completed' ? (
-                                                    <CheckCircleIcon className="h-5 w-5 text-[#2BE89A]" />
-                                                ) : (
-                                                    <step.icon className={`h-5 w-5 ${
-                                                        status === 'current'
-                                                            ? 'text-black'
-                                                            : status === 'completed'
-                                                                ? 'text-[#2BE89A]'
-                                                                : status === 'available'
-                                                                    ? 'text-gray-600'
-                                                                    : 'text-gray-400'
-                                                    }`} />
-                                                )}
-                                            </div>
-                                            <div className="flex-1">
-                                                <div className="flex items-center justify-between">
-                                                    <h3 className={`font-medium ${
-                                                        status === 'current' || status === 'completed'
-                                                            ? 'text-gray-900'
-                                                            : 'text-gray-600'
-                                                    }`}>
-                                                        {step.name}
-                                                    </h3>
-                                                    <div className={`w-2 h-2 rounded-full ${
-                                                        status === 'completed' || status === 'current'
-                                                            ? 'bg-[#2BE89A]'
-                                                            : 'bg-gray-300'
-                                                    }`} />
-                                                </div>
-                                                <p className="text-xs mt-1 text-gray-500">{step.description}</p>
-                                            </div>
-                                        </div>
-                                    </button>
-                                )
-                            })}
                         </div>
                     </div>
-                </div>
+                )}
 
-                {/* Main Content */}
-                <div className="flex-1 p-6">
-                    <div className="max-w-4xl mx-auto">
-                        {showWelcome && currentStep === 0 ? (
-                            // Welcome Screen
-                            <div className="bg-white rounded-2xl border border-gray-200 shadow-xl">
-                                <div className="relative">
-                                    <div className="absolute inset-0 bg-gradient-to-br from-[#2BE89A]/10 via-transparent to-[#4FFFB0]/10" />
-                                    <div className="relative px-8 py-12 text-center">
-                                        <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-[#2BE89A] to-[#4FFFB0] rounded-2xl mb-6">
-                                            <RocketLaunchIcon className="h-8 w-8 text-black" />
-                                        </div>
-                                        <h1 className="text-3xl font-bold text-gray-900 mb-3">
-                                            Setup {restaurant.name}
-                                        </h1>
-                                        <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                                            Configure all necessary integrations and settings to get {restaurant.name} ready for split payments
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="px-8 pb-8">
-                                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-                                        {OnboardingSteps.map((step) => (
-                                            <div
-                                                key={step.id}
-                                                className="bg-white rounded-lg p-5 border border-gray-200 hover:border-[#2BE89A] hover:shadow-md transition-all"
-                                            >
-                                                <step.icon className="h-8 w-8 text-[#2BE89A] mb-3" />
-                                                <h3 className="text-sm font-semibold text-gray-900 mb-1">{step.name}</h3>
-                                                <p className="text-xs text-gray-600 leading-relaxed">{step.description}</p>
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    <button
-                                        onClick={() => {
-                                            setShowWelcome(false)
-                                            setCurrentStep(1)
-                                        }}
-                                        className="w-full px-6 py-4 bg-gradient-to-r from-[#2BE89A] to-[#4FFFB0] text-black font-semibold rounded-xl hover:shadow-lg transform hover:scale-[1.02] transition-all group"
-                                    >
-                    <span className="flex items-center justify-center text-base">
-                      Start Setup
-                      <ArrowRightIcon className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
-                    </span>
-                                    </button>
-                                </div>
+                {/* Header */}
+                <div className="bg-white border-b border-gray-200 px-6 py-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                            <button
+                                onClick={() => router.push('/restaurants')}
+                                className="mr-4 p-2 text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-100 transition"
+                            >
+                                <ChevronLeftIcon className="h-5 w-5" />
+                            </button>
+                            <div>
+                                <h1 className="text-xl font-semibold text-gray-900">{restaurant.name} - Onboarding</h1>
+                                <p className="text-sm text-gray-600">
+                                    Super Admin Setup • Step {currentStep} of 6
+                                    {progress && ` • ${progress.completed_steps.length}/6 completed`}
+                                </p>
                             </div>
-                        ) : (
-                            // Step Content
-                            <div className="space-y-6">
-                                {renderStepContent()}
+                        </div>
+                        {progress && (
+                            <div className="flex items-center space-x-4">
+                                <div className="text-right">
+                                    <p className="text-sm font-medium text-gray-900">
+                                        {progress.completed_steps.length}/6 Steps
+                                    </p>
+                                    <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-[#2BE89A] transition-all duration-500"
+                                            style={{ width: `${(progress.completed_steps.length / 6) * 100}%` }}
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>
                 </div>
+
+                <div className="flex">
+                    {/* Sidebar */}
+                    <div className="w-80 bg-white border-r border-gray-200 min-h-screen">
+                        <div className="p-6">
+                            {/* Restaurant Info */}
+                            <div className="mb-6">
+                                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                    <div className="flex items-center mb-3">
+                                        <div className="w-10 h-10 bg-gradient-to-r from-[#2BE89A] to-[#4FFFB0] rounded-lg flex items-center justify-center mr-3">
+                                            <BuildingStorefrontIcon className="h-5 w-5 text-black" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-medium text-gray-900">{restaurant.name}</h3>
+                                            <p className="text-xs text-gray-500">{restaurant.city}</p>
+                                        </div>
+                                    </div>
+                                    {progress && (
+                                        <div className="pt-3 border-t border-gray-200">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className="text-xs font-medium text-gray-700">Progress</span>
+                                                <span className="text-xs font-semibold text-[#2BE89A]">
+                        {progress.completed_steps.length}/6
+                      </span>
+                                            </div>
+                                            <div className="w-full rounded-full h-2 bg-gray-200">
+                                                <div
+                                                    className="bg-[#2BE89A] h-2 rounded-full transition-all duration-500"
+                                                    style={{ width: `${(progress.completed_steps.length / 6) * 100}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Steps */}
+                            <div className="space-y-2">
+                                {/* Welcome Step */}
+                                <button
+                                    onClick={() => {
+                                        setCurrentStep(0)
+                                        setShowWelcome(true)
+                                    }}
+                                    className={`w-full text-left rounded-lg transition-all duration-200 p-4 ${
+                                        currentStep === 0
+                                            ? 'bg-gradient-to-r from-[#2BE89A]/10 to-[#4FFFB0]/10 border-2 border-[#2BE89A] shadow-sm'
+                                            : 'bg-white border border-gray-200 hover:border-[#2BE89A]/50 hover:shadow-sm'
+                                    }`}
+                                >
+                                    <div className="flex items-center">
+                                        <div className={`p-1.5 rounded-md mr-3 ${
+                                            currentStep === 0 ? 'bg-[#2BE89A]' : 'bg-[#2BE89A]/20'
+                                        }`}>
+                                            <RocketLaunchIcon className={`h-4 w-4 ${
+                                                currentStep === 0 ? 'text-black' : 'text-[#2BE89A]'
+                                            }`} />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-semibold text-sm text-gray-900">Welcome</h3>
+                                            <p className="text-xs text-gray-500">Start restaurant setup</p>
+                                        </div>
+                                    </div>
+                                </button>
+
+                                <div className="my-3 px-2">
+                                    <div className="border-t border-gray-200"></div>
+                                </div>
+
+                                {/* Onboarding Steps */}
+                                {OnboardingSteps.map((step) => {
+                                    const status = getStepStatus(step.id)
+                                    const isClickable = status !== 'locked'
+
+                                    return (
+                                        <button
+                                            key={step.id}
+                                            onClick={() => handleStepClick(step.id)}
+                                            disabled={!isClickable}
+                                            className={`w-full text-left p-4 rounded-lg transition-all duration-200 ${
+                                                status === 'current'
+                                                    ? 'bg-white border-2 border-[#2BE89A] shadow-sm'
+                                                    : status === 'completed'
+                                                        ? 'bg-white border border-gray-200 hover:border-[#2BE89A] hover:shadow-sm'
+                                                        : status === 'available'
+                                                            ? 'bg-white border border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                                                            : 'bg-gray-50 border border-gray-200 opacity-50 cursor-not-allowed'
+                                            }`}
+                                        >
+                                            <div className="flex items-start">
+                                                <div className={`p-2 rounded-lg mr-3 transition-all ${
+                                                    status === 'current'
+                                                        ? 'bg-[#2BE89A]'
+                                                        : status === 'completed'
+                                                            ? 'bg-[#2BE89A]/20'
+                                                            : status === 'available'
+                                                                ? 'bg-gray-100'
+                                                                : 'bg-gray-50'
+                                                }`}>
+                                                    {status === 'completed' ? (
+                                                        <CheckCircleIcon className="h-5 w-5 text-[#2BE89A]" />
+                                                    ) : (
+                                                        <step.icon className={`h-5 w-5 ${
+                                                            status === 'current'
+                                                                ? 'text-black'
+                                                                : status === 'completed'
+                                                                    ? 'text-[#2BE89A]'
+                                                                    : status === 'available'
+                                                                        ? 'text-gray-600'
+                                                                        : 'text-gray-400'
+                                                        }`} />
+                                                    )}
+                                                </div>
+                                                <div className="flex-1">
+                                                    <div className="flex items-center justify-between">
+                                                        <h3 className={`font-medium ${
+                                                            status === 'current' || status === 'completed'
+                                                                ? 'text-gray-900'
+                                                                : 'text-gray-600'
+                                                        }`}>
+                                                            {step.name}
+                                                        </h3>
+                                                        <div className={`w-2 h-2 rounded-full ${
+                                                            status === 'completed' || status === 'current'
+                                                                ? 'bg-[#2BE89A]'
+                                                                : 'bg-gray-300'
+                                                        }`} />
+                                                    </div>
+                                                    <p className="text-xs mt-1 text-gray-500">{step.description}</p>
+                                                </div>
+                                            </div>
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Main Content */}
+                    <div className="flex-1 p-6">
+                        <div className="max-w-4xl mx-auto">
+                            {showWelcome && currentStep === 0 ? (
+                                // Welcome Screen
+                                <div className="bg-white rounded-2xl border border-gray-200 shadow-xl">
+                                    <div className="relative">
+                                        <div className="absolute inset-0 bg-gradient-to-br from-[#2BE89A]/10 via-transparent to-[#4FFFB0]/10" />
+                                        <div className="relative px-8 py-12 text-center">
+                                            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-[#2BE89A] to-[#4FFFB0] rounded-2xl mb-6">
+                                                <RocketLaunchIcon className="h-8 w-8 text-black" />
+                                            </div>
+                                            <h1 className="text-3xl font-bold text-gray-900 mb-3">
+                                                Setup {restaurant.name}
+                                            </h1>
+                                            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                                                Configure all necessary integrations and settings to get {restaurant.name} ready for split payments
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="px-8 pb-8">
+                                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                                            {OnboardingSteps.map((step) => (
+                                                <div
+                                                    key={step.id}
+                                                    className="bg-white rounded-lg p-5 border border-gray-200 hover:border-[#2BE89A] hover:shadow-md transition-all"
+                                                >
+                                                    <step.icon className="h-8 w-8 text-[#2BE89A] mb-3" />
+                                                    <h3 className="text-sm font-semibold text-gray-900 mb-1">{step.name}</h3>
+                                                    <p className="text-xs text-gray-600 leading-relaxed">{step.description}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <button
+                                            onClick={() => {
+                                                setShowWelcome(false)
+                                                setCurrentStep(1)
+                                            }}
+                                            className="w-full px-6 py-4 bg-gradient-to-r from-[#2BE89A] to-[#4FFFB0] text-black font-semibold rounded-xl hover:shadow-lg transform hover:scale-[1.02] transition-all group"
+                                        >
+                    <span className="flex items-center justify-center text-base">
+                      Start Setup
+                      <ArrowRightIcon className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                    </span>
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                // Step Content
+                                <div className="space-y-6">
+                                    {renderStepContent()}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
         </SmartLayout>
     )
 }

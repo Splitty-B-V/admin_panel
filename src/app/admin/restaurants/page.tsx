@@ -587,7 +587,7 @@ const Restaurants: NextPage = () => {
                         {restaurant.status === 'deleted' ? (
                             <div className="flex gap-2">
                               <Link
-                                  href={`/restaurants/${restaurant.id}`}
+                                  href={`/admin/restaurants/detail/${restaurant.id}`}
                                   className="flex-1 inline-flex items-center justify-center px-3 py-2 text-sm font-medium rounded-lg transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200"
                               >
                                 {t('restaurants.profile.viewDetails')}
@@ -613,7 +613,7 @@ const Restaurants: NextPage = () => {
                             </div>
                         ) : (
                             <Link
-                                href={restaurant.status === 'onboarding' ? `/admin/restaurants/new/onboarding/${restaurant.id}` : `/restaurants/${restaurant.id}`}
+                                href={restaurant.status === 'onboarding' ? `/admin/restaurants/new/onboarding/${restaurant.id}` : `/admin/restaurants/detail/${restaurant.id}`}
                                 className={`w-full inline-flex items-center justify-center px-3.5 py-2 rounded-md transition-all text-sm font-medium ${
                                     restaurant.status === 'onboarding'
                                         ? 'bg-green-500 text-white hover:bg-green-600'

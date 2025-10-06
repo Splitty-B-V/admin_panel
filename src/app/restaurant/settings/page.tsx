@@ -21,6 +21,8 @@ import {
     ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline'
 
+import SmartLayout from '@/components/common/SmartLayout'
+
 // Types and Interfaces
 interface PasswordForm {
     currentPassword: string

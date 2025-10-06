@@ -163,7 +163,7 @@ export async function deleteRestaurant(restaurantId: number): Promise<{ message:
 }
 
 export async function restoreRestaurant(restaurantId: number): Promise<{ message: string }> {
-    return apiRequest<{ message: string }>(`/super_admin/restaurants/${restaurantId}/restore`, 'POST')
+    return apiRequest<{ message: string }>(`/super_admin/restaurants/${restaurantId}/restore`, 'PATCH')
 }
 
 export async function getRestaurantStats(): Promise<RestaurantStats> {

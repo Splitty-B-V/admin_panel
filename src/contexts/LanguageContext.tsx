@@ -11,7 +11,7 @@ interface LanguageOption {
 interface LanguageContextType {
   locale: string
   setLocale: (locale: string) => void
-  t: (key: string) => string
+  t: (key: string, params?: Record<string, any>) => string
   availableLanguages: LanguageOption[]
 }
 
@@ -41,7 +41,19 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   // Используем дефолтный язык до загрузки клиента
   const effectiveLocale = isClient ? locale : 'nl'
-  const t = (key: string) => translate(key, effectiveLocale)
+
+  const t = (key: string, params?: Record<string, any>) => {
+    let translation = translate(key, effectiveLocale)
+
+    // Если есть параметры, заменяем плейсхолдеры простой заменой строк
+    if (params) {
+      for (const [paramKey, paramValue] of Object.entries(params)) {
+        translation = translation.replaceAll(`{{${paramKey}}}`, String(paramValue))
+      }
+    }
+
+    return translation
+  }
 
   return (
       <LanguageContext.Provider value={{

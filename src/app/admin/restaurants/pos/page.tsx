@@ -124,11 +124,11 @@ const POSIntegration: NextPage = () => {
                 setAllRestaurants(restaurantsData)
                 loadPosStatuses(restaurantsData)
             } else {
-                throw new Error('Failed to load restaurants')
+                throw new Error(t('pos.errors.loadRestaurants'))
             }
         } catch (err: any) {
             console.error('Error loading restaurants:', err)
-            setError(err.message || 'Failed to load restaurants')
+            setError(err.message || t('pos.errors.loadRestaurants'))
         } finally {
             setLoading(false)
             setSearching(false)
@@ -152,8 +152,8 @@ const POSIntegration: NextPage = () => {
                 newNotifications.push({
                     id: `${restaurant.id}-not-configured`,
                     type: 'info',
-                    title: 'Not Configured',
-                    message: `${restaurant.name} - POS integration needs setup`,
+                    title: t('pos.status.notConfigured'),
+                    message: t('pos.notifications.needsSetup', { restaurant: restaurant.name }),
                     restaurantId: restaurant.id,
                     timestamp: new Date().toISOString()
                 })
@@ -215,7 +215,7 @@ const POSIntegration: NextPage = () => {
                 <div className="min-h-screen bg-[#F9FAFB] flex items-center justify-center">
                     <div className="text-center">
                         <ArrowPathIcon className="mx-auto h-12 w-12 text-gray-400 animate-spin" />
-                        <h3 className="mt-4 text-base font-medium text-gray-900">Loading POS data...</h3>
+                        <h3 className="mt-4 text-base font-medium text-gray-900">{t('pos.loading.data')}</h3>
                     </div>
                 </div>
             </SmartLayout>
@@ -228,14 +228,14 @@ const POSIntegration: NextPage = () => {
                 <div className="min-h-screen bg-[#F9FAFB] flex items-center justify-center">
                     <div className="text-center">
                         <ExclamationTriangleIcon className="mx-auto h-12 w-12 text-red-400" />
-                        <h3 className="mt-4 text-base font-medium text-gray-900">Error loading POS data</h3>
+                        <h3 className="mt-4 text-base font-medium text-gray-900">{t('pos.error.loading')}</h3>
                         <p className="mt-2 text-sm text-gray-500">{error}</p>
                         <button
                             onClick={() => loadRestaurants()}
                             className="mt-4 inline-flex items-center px-4 py-2 bg-green-500 text-white font-medium rounded-lg hover:bg-green-600 transition-all"
                         >
                             <ArrowPathIcon className="mr-2 h-5 w-5" />
-                            Retry
+                            {t('pos.error.retry')}
                         </button>
                     </div>
                 </div>
@@ -249,16 +249,16 @@ const POSIntegration: NextPage = () => {
                 <div className="px-4 sm:px-6 lg:px-8 py-8">
                     <div className="space-y-6">
                         {/* Breadcrumb */}
-                        <Breadcrumb items={[{ label: 'POS Integration' }]} />
+                        <Breadcrumb items={[{ label: t('pos.title') }]} />
 
                         {/* Header */}
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                             <div>
                                 <h1 className="text-2xl font-semibold text-[#111827] mb-1">
-                                    POS Integration
+                                    {t('pos.title')}
                                 </h1>
                                 <p className="text-[#6B7280]">
-                                    Monitor and manage point-of-sale system connections
+                                    {t('pos.subtitle')}
                                 </p>
                             </div>
                             <button
@@ -270,7 +270,7 @@ const POSIntegration: NextPage = () => {
                                 disabled={refreshing}
                             >
                                 <ArrowPathIcon className={`-ml-1 mr-2 h-5 w-5 ${refreshing ? 'animate-spin' : ''} text-gray-500`} />
-                                {refreshing ? 'Refreshing...' : 'Refresh Status'}
+                                {refreshing ? t('pos.refreshing') : t('pos.refreshStatus')}
                             </button>
                         </div>
 
@@ -283,7 +283,7 @@ const POSIntegration: NextPage = () => {
                                     </div>
                                     <div className="ml-4">
                                         <p className="text-xs font-medium uppercase tracking-wider text-[#6B7280]">
-                                            Total Restaurants
+                                            {t('pos.stats.totalRestaurants')}
                                         </p>
                                         <p className="text-2xl font-bold mt-2 text-[#111827]">
                                             {activeRestaurants.length}
@@ -299,7 +299,7 @@ const POSIntegration: NextPage = () => {
                                     </div>
                                     <div className="ml-4">
                                         <p className="text-xs font-medium uppercase tracking-wider text-[#6B7280]">
-                                            Configured
+                                            {t('pos.stats.configured')}
                                         </p>
                                         <p className="text-2xl font-bold mt-2 text-[#111827]">
                                             {configuredCount}
@@ -315,7 +315,7 @@ const POSIntegration: NextPage = () => {
                                     </div>
                                     <div className="ml-4">
                                         <p className="text-xs font-medium uppercase tracking-wider text-[#6B7280]">
-                                            Connected
+                                            {t('pos.stats.connected')}
                                         </p>
                                         <p className="text-2xl font-bold mt-2 text-[#111827]">
                                             {connectedCount}
@@ -331,7 +331,7 @@ const POSIntegration: NextPage = () => {
                                     </div>
                                     <div className="ml-4">
                                         <p className="text-xs font-medium uppercase tracking-wider text-[#6B7280]">
-                                            Issues
+                                            {t('pos.stats.issues')}
                                         </p>
                                         <p className="text-2xl font-bold mt-2 text-[#111827]">
                                             {issuesCount}
@@ -358,7 +358,7 @@ const POSIntegration: NextPage = () => {
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
                                             className="block w-full pl-10 pr-3 py-2.5 rounded-lg text-sm focus:outline-none focus:ring-2 transition bg-white border border-gray-200 text-gray-900 placeholder-gray-500 focus:ring-green-500 hover:border-gray-300"
-                                            placeholder="Search restaurants..."
+                                            placeholder={t('pos.search.placeholder')}
                                         />
                                     </div>
 
@@ -368,13 +368,13 @@ const POSIntegration: NextPage = () => {
                                             onChange={(e) => setSelectedFilter(e.target.value)}
                                             className="appearance-none w-full pl-3 pr-10 py-2.5 rounded-lg focus:outline-none focus:ring-2 cursor-pointer transition text-sm bg-white border border-gray-200 text-gray-900 focus:ring-green-500 hover:border-gray-300"
                                         >
-                                            <option value="all">All Locations</option>
-                                            <option value="amsterdam">Amsterdam</option>
-                                            <option value="rotterdam">Rotterdam</option>
-                                            <option value="utrecht">Utrecht</option>
-                                            <option value="den haag">Den Haag</option>
-                                            <option value="eindhoven">Eindhoven</option>
-                                            <option value="zaandam">Zaandam</option>
+                                            <option value="all">{t('pos.filter.allLocations')}</option>
+                                            <option value="amsterdam">{t('pos.filter.locations.amsterdam')}</option>
+                                            <option value="rotterdam">{t('pos.filter.locations.rotterdam')}</option>
+                                            <option value="utrecht">{t('pos.filter.locations.utrecht')}</option>
+                                            <option value="den haag">{t('pos.filter.locations.denHaag')}</option>
+                                            <option value="eindhoven">{t('pos.filter.locations.eindhoven')}</option>
+                                            <option value="zaandam">{t('pos.filter.locations.zaandam')}</option>
                                         </select>
                                         <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
                                             <svg className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
@@ -394,7 +394,7 @@ const POSIntegration: NextPage = () => {
                                         <div className="flex items-center">
                                             <ExclamationTriangleIcon className="h-5 w-5 mr-2 text-yellow-500" />
                                             <h3 className="text-sm font-medium text-gray-900">
-                                                Attention Required ({issuesCount})
+                                                {t('pos.notifications.attentionRequired', { count: issuesCount })}
                                             </h3>
                                         </div>
                                         <button
@@ -417,7 +417,7 @@ const POSIntegration: NextPage = () => {
                                                     href={`/admin/restaurants/new/onboarding/${notification.restaurantId}?step=3`}
                                                     className="text-sm text-green-600 hover:text-green-700"
                                                 >
-                                                    Configure →
+                                                    {t('pos.actions.configure')} →
                                                 </Link>
                                             </div>
                                         ))}
@@ -430,7 +430,7 @@ const POSIntegration: NextPage = () => {
                         <div className="rounded-xl overflow-hidden bg-white shadow-sm">
                             <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
                                 <h2 className="text-lg font-semibold text-[#111827]">
-                                    Restaurant POS Status
+                                    {t('pos.list.title')}
                                 </h2>
                             </div>
 
@@ -498,22 +498,22 @@ const POSIntegration: NextPage = () => {
                                                         {isConnected && isActive ? (
                                                             <>
                                                                 <CheckCircleIcon className="h-3.5 w-3.5 mr-1" />
-                                                                Active
+                                                                {t('pos.status.active')}
                                                             </>
                                                         ) : !isConfigured ? (
                                                             <>
                                                                 <ClockIcon className="h-3.5 w-3.5 mr-1" />
-                                                                Not Configured
+                                                                {t('pos.status.notConfigured')}
                                                             </>
                                                         ) : !isConnected ? (
                                                             <>
                                                                 <XCircleIcon className="h-3.5 w-3.5 mr-1" />
-                                                                Not Connected
+                                                                {t('pos.status.notConnected')}
                                                             </>
                                                         ) : (
                                                             <>
                                                                 <ClockIcon className="h-3.5 w-3.5 mr-1" />
-                                                                Inactive
+                                                                {t('pos.status.inactive')}
                                                             </>
                                                         )}
                                                     </span>
@@ -521,7 +521,7 @@ const POSIntegration: NextPage = () => {
                                                     {/* Action */}
                                                     <Link
                                                         href={isConfigured && isConnected && isActive
-                                                            ? `/restaurants/${restaurant.id}`
+                                                            ? `/admin/restaurants/detail/${restaurant.id}`
                                                             : `/admin/restaurants/new/onboarding/${restaurant.id}?step=3`
                                                         }
                                                         className={`text-sm font-medium ${
@@ -530,7 +530,10 @@ const POSIntegration: NextPage = () => {
                                                                 : 'text-gray-600 hover:text-gray-700'
                                                         }`}
                                                     >
-                                                        {!isConfigured || !isConnected || !isActive ? 'Configure →' : 'Details →'}
+                                                        {!isConfigured || !isConnected || !isActive ?
+                                                            `${t('pos.actions.configure')} →` :
+                                                            `${t('pos.actions.details')} →`
+                                                        }
                                                     </Link>
                                                 </div>
                                             </div>
@@ -545,17 +548,17 @@ const POSIntegration: NextPage = () => {
                             <div className="text-center py-16 rounded-xl bg-white shadow-sm">
                                 <BuildingStorefrontIcon className="mx-auto h-12 w-12 text-gray-400" />
                                 <h3 className="mt-4 text-base font-medium text-[#111827]">
-                                    No Active Restaurants
+                                    {t('pos.empty.title')}
                                 </h3>
                                 <p className="mt-2 text-sm text-[#6B7280]">
-                                    Add your first restaurant to get started with POS integration
+                                    {t('pos.empty.description')}
                                 </p>
                                 <Link
                                     href="/admin/restaurants/new"
                                     className="mt-6 inline-flex items-center px-4 py-2.5 bg-green-500 text-white font-medium rounded-lg hover:bg-green-600 transition-all"
                                 >
                                     <BuildingStorefrontIcon className="mr-2 h-5 w-5" />
-                                    Add Restaurant
+                                    {t('pos.empty.addRestaurant')}
                                 </Link>
                             </div>
                         )}

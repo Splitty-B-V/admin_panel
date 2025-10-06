@@ -39,6 +39,106 @@ const StripeIcon = () => (
     </svg>
 )
 
+// Extracted modal component to fix input focus issue
+interface DeleteModalProps {
+  isOpen: boolean
+  restaurant: RestaurantListItem | null
+  confirmText: string
+  onConfirmTextChange: (text: string) => void
+  onConfirm: () => void
+  onCancel: () => void
+  t: (key: string) => string
+}
+
+const DeleteConfirmationModal = ({
+                                   isOpen,
+                                   restaurant,
+                                   confirmText,
+                                   onConfirmTextChange,
+                                   onConfirm,
+                                   onCancel,
+                                   t
+                                 }: DeleteModalProps) => {
+  if (!isOpen || !restaurant) return null
+
+  const canDelete = confirmText === restaurant.name
+
+  return (
+      <div className="fixed inset-0 z-50 overflow-y-auto">
+        <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+          <div
+              className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity"
+              onClick={onCancel}
+          />
+
+          <span className="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+
+          <div className="inline-block align-bottom rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full bg-white">
+            <div className="px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+              <div className="sm:flex sm:items-start">
+                <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                  <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
+                </div>
+                <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left flex-1">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900">
+                    {t('restaurants.deleteModal.title')}
+                  </h3>
+                  <div className="mt-2">
+                    <p className="text-sm text-gray-500">
+                      {t('restaurants.deleteModal.warning')} <span className="font-semibold">{restaurant.name}</span>.
+                    </p>
+                    <div className="mt-3 p-3 rounded-lg bg-red-50 border border-red-200">
+                      <p className="text-sm font-semibold text-red-800">
+                        {t('restaurants.deleteModal.cautionTitle')}
+                      </p>
+                      <p className="text-sm mt-2 text-red-700">
+                        {t('restaurants.deleteModal.cautionText')}
+                      </p>
+                    </div>
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        {t('restaurants.deleteModal.confirmLabel')} <span className="font-semibold">{restaurant.name}</span>
+                      </label>
+                      <input
+                          type="text"
+                          value={confirmText}
+                          onChange={(e) => onConfirmTextChange(e.target.value)}
+                          placeholder={t('restaurants.deleteModal.confirmPlaceholder')}
+                          className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 transition bg-white border border-gray-300 text-gray-900 placeholder-gray-500 focus:ring-red-500"
+                          autoFocus
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse bg-gray-50">
+              <button
+                  type="button"
+                  onClick={onConfirm}
+                  disabled={!canDelete}
+                  className={`w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm transition-all ${
+                      canDelete
+                          ? 'bg-red-600 hover:bg-red-700 cursor-pointer'
+                          : 'bg-gray-400 cursor-not-allowed opacity-50'
+                  }`}
+              >
+                {t('restaurants.deleteModal.confirmButton')}
+              </button>
+              <button
+                  type="button"
+                  onClick={onCancel}
+                  className="mt-3 w-full inline-flex justify-center rounded-md border shadow-sm px-4 py-2 text-base font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+              >
+                {t('restaurants.deleteModal.cancelButton')}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+  )
+}
+
 const Restaurants: NextPage = () => {
   // State для данных
   const [allRestaurants, setAllRestaurants] = useState<RestaurantListItem[]>([])
@@ -84,7 +184,7 @@ const Restaurants: NextPage = () => {
       setStats(statsData)
     } catch (err: any) {
       console.error('Error loading initial data:', err)
-      setError(err.message || 'Failed to load data')
+      setError(err.message || t('restaurants.errors.loadFailed'))
     } finally {
       setLoading(false)
     }
@@ -151,20 +251,23 @@ const Restaurants: NextPage = () => {
   const handleDeleteClick = (restaurant: RestaurantListItem) => {
     setRestaurantToDelete(restaurant)
     setDeleteModalOpen(true)
+    setDeleteConfirmText('') // Reset confirm text
   }
 
   const handleConfirmDelete = async () => {
     if (restaurantToDelete) {
       try {
         await deleteRestaurant(restaurantToDelete.id)
+
+        // Полное удаление из локального состояния
+        await loadInitialData()
+
         setDeleteModalOpen(false)
         setRestaurantToDelete(null)
         setDeleteConfirmText('')
-        // Обновляем локальные данные
-        setAllRestaurants(prev => prev.filter(r => r.id !== restaurantToDelete.id))
       } catch (err: any) {
         console.error('Error deleting restaurant:', err)
-        setError(err.message || 'Failed to delete restaurant')
+        setError(err.message || t('restaurants.errors.deleteFailed'))
       }
     }
   }
@@ -172,97 +275,19 @@ const Restaurants: NextPage = () => {
   const handleRestore = async (restaurantId: number) => {
     try {
       await restoreRestaurant(restaurantId)
-      // Обновляем статус локально
-      setAllRestaurants(prev =>
-          prev.map(r => r.id === restaurantId ? { ...r, status: 'active' as const, is_active: true } : r)
-      )
+
+      await loadInitialData()
+
     } catch (err: any) {
       console.error('Error restoring restaurant:', err)
-      setError(err.message || 'Failed to restore restaurant')
+      setError(err.message || t('restaurants.errors.restoreFailed'))
     }
   }
 
-  const DeleteConfirmationModal = () => {
-    if (!deleteModalOpen || !restaurantToDelete) return null
-
-    const canDelete = deleteConfirmText === restaurantToDelete.name
-
-    return (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div
-                className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity"
-                onClick={() => setDeleteModalOpen(false)}
-            />
-
-            <span className="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
-
-            <div className="inline-block align-bottom rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full bg-white">
-              <div className="px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <div className="sm:flex sm:items-start">
-                  <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-                    <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
-                  </div>
-                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left flex-1">
-                    <h3 className="text-lg leading-6 font-medium text-gray-900">
-                      {t('restaurants.deleteModal.title')}
-                    </h3>
-                    <div className="mt-2">
-                      <p className="text-sm text-gray-500">
-                        {t('restaurants.deleteModal.warning')} <span className="font-semibold">{restaurantToDelete.name}</span>.
-                      </p>
-                      <div className="mt-3 p-3 rounded-lg bg-red-50 border border-red-200">
-                        <p className="text-sm font-semibold text-red-800">
-                          {t('restaurants.deleteModal.cautionTitle')}
-                        </p>
-                        <p className="text-sm mt-2 text-red-700">
-                          {t('restaurants.deleteModal.cautionText')}
-                        </p>
-                      </div>
-                      <div className="mt-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          {t('restaurants.deleteModal.confirmLabel')} <span className="font-semibold">{restaurantToDelete.name}</span>
-                        </label>
-                        <input
-                            type="text"
-                            value={deleteConfirmText}
-                            onChange={(e) => setDeleteConfirmText(e.target.value)}
-                            placeholder={t('restaurants.deleteModal.confirmPlaceholder')}
-                            className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 transition bg-white border border-gray-300 text-gray-900 placeholder-gray-500 focus:ring-red-500"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse bg-gray-50">
-                <button
-                    type="button"
-                    onClick={handleConfirmDelete}
-                    disabled={!canDelete}
-                    className={`w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm transition-all ${
-                        canDelete
-                            ? 'bg-red-600 hover:bg-red-700 cursor-pointer'
-                            : 'bg-gray-400 cursor-not-allowed opacity-50'
-                    }`}
-                >
-                  {t('restaurants.deleteModal.confirmButton')}
-                </button>
-                <button
-                    type="button"
-                    onClick={() => {
-                      setDeleteModalOpen(false)
-                      setDeleteConfirmText('')
-                    }}
-                    className="mt-3 w-full inline-flex justify-center rounded-md border shadow-sm px-4 py-2 text-base font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                >
-                  {t('restaurants.deleteModal.cancelButton')}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-    )
+  const handleCancelDelete = () => {
+    setDeleteModalOpen(false)
+    setRestaurantToDelete(null)
+    setDeleteConfirmText('')
   }
 
   if (loading) {
@@ -271,7 +296,7 @@ const Restaurants: NextPage = () => {
           <div className="min-h-screen bg-[#F9FAFB] flex items-center justify-center">
             <div className="text-center">
               <ArrowPathIcon className="mx-auto h-12 w-12 text-gray-400 animate-spin" />
-              <h3 className="mt-4 text-base font-medium text-gray-900">Loading restaurants...</h3>
+              <h3 className="mt-4 text-base font-medium text-gray-900">{t('restaurants.loading.title')}</h3>
             </div>
           </div>
         </SmartLayout>
@@ -284,14 +309,14 @@ const Restaurants: NextPage = () => {
           <div className="min-h-screen bg-[#F9FAFB] flex items-center justify-center">
             <div className="text-center">
               <ExclamationTriangleIcon className="mx-auto h-12 w-12 text-red-400" />
-              <h3 className="mt-4 text-base font-medium text-gray-900">Error loading restaurants</h3>
+              <h3 className="mt-4 text-base font-medium text-gray-900">{t('restaurants.error.title')}</h3>
               <p className="mt-2 text-sm text-gray-500">{error}</p>
               <button
                   onClick={loadInitialData}
                   className="mt-4 inline-flex items-center px-4 py-2 bg-green-500 text-white font-medium rounded-lg hover:bg-green-600 transition-all"
               >
                 <ArrowPathIcon className="mr-2 h-5 w-5" />
-                Retry
+                {t('restaurants.error.retry')}
               </button>
             </div>
           </div>
@@ -301,12 +326,20 @@ const Restaurants: NextPage = () => {
 
   return (
       <SmartLayout>
-        <DeleteConfirmationModal />
+        <DeleteConfirmationModal
+            isOpen={deleteModalOpen}
+            restaurant={restaurantToDelete}
+            confirmText={deleteConfirmText}
+            onConfirmTextChange={setDeleteConfirmText}
+            onConfirm={handleConfirmDelete}
+            onCancel={handleCancelDelete}
+            t={t}
+        />
         <div className="min-h-screen bg-[#F9FAFB]">
           <div className="px-4 sm:px-6 lg:px-8 py-8">
             <div className="space-y-6">
               {/* Breadcrumb */}
-              <Breadcrumb items={[{ label: t('sidebar.menu.restaurants') }]} />
+              <Breadcrumb items={[{ label: t('restaurants.navigation.breadcrumb') }]} />
 
               {/* Header */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -323,7 +356,7 @@ const Restaurants: NextPage = () => {
                     className="inline-flex items-center px-4 py-2.5 bg-gradient-to-r from-green-500 to-green-600 text-white font-medium rounded-lg hover:from-green-600 hover:to-green-700 transition-all shadow-sm"
                 >
                   <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
-                  {t('restaurants.newRestaurant')}
+                  {t('restaurants.actions.addNew')}
                 </Link>
               </div>
 
@@ -394,7 +427,7 @@ const Restaurants: NextPage = () => {
                           ? 'text-green-500'
                           : ''
                   }`} />
-                  {t('restaurants.tabs.all')}
+                  {t('restaurants.filters.tabs.all')}
                   <span className={`inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold rounded-full ${
                       statusFilter === 'all'
                           ? 'bg-green-100 text-green-600'
@@ -418,7 +451,7 @@ const Restaurants: NextPage = () => {
                           ? 'text-yellow-500 animate-spin'
                           : ''
                   }`} />
-                  {t('restaurants.tabs.onboarding')}
+                  {t('restaurants.filters.tabs.onboarding')}
                   <span className={`inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold rounded-full ${
                       statusFilter === 'onboarding'
                           ? 'bg-yellow-100 text-yellow-600'
@@ -442,7 +475,7 @@ const Restaurants: NextPage = () => {
                           ? 'text-red-500'
                           : ''
                   }`} />
-                  {t('restaurants.tabs.deleted')}
+                  {t('restaurants.filters.tabs.archived')}
                   <span className={`inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold rounded-full ${
                       statusFilter === 'deleted'
                           ? 'bg-red-100 text-red-600'
@@ -471,7 +504,7 @@ const Restaurants: NextPage = () => {
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
                           className="block w-full pl-10 pr-3 py-2.5 rounded-lg text-sm focus:outline-none focus:ring-2 transition bg-white border border-gray-200 text-gray-900 placeholder-gray-500 focus:ring-green-500 hover:border-gray-300"
-                          placeholder={t('restaurants.search')}
+                          placeholder={t('restaurants.search.placeholder')}
                       />
                     </div>
 
@@ -481,7 +514,7 @@ const Restaurants: NextPage = () => {
                           onChange={(e) => setSelectedFilter(e.target.value)}
                           className="appearance-none w-full pl-3 pr-10 py-2.5 rounded-lg focus:outline-none focus:ring-2 cursor-pointer transition text-sm bg-white border border-gray-200 text-gray-900 focus:ring-green-500 hover:border-gray-300"
                       >
-                        <option value="all">{t('restaurants.filterByLocation')}</option>
+                        <option value="all">{t('restaurants.filters.location.all')}</option>
                         <option value="amsterdam">Amsterdam</option>
                         <option value="rotterdam">Rotterdam</option>
                         <option value="utrecht">Utrecht</option>
@@ -564,7 +597,7 @@ const Restaurants: NextPage = () => {
                             <div className="grid grid-cols-2 gap-3">
                               <div>
                           <span className="block text-xs mb-1 text-[#9CA3AF]">
-                            {t('dashboard.sections.bestPerforming.columns.revenue')}
+                            {t('restaurants.metrics.revenue')}
                           </span>
                                 <span className="font-semibold text-sm text-[#111827]">
                             {restaurant.revenue}
@@ -572,7 +605,7 @@ const Restaurants: NextPage = () => {
                               </div>
                               <div>
                           <span className="block text-xs mb-1 text-[#9CA3AF]">
-                            {t('dashboard.sections.bestPerforming.columns.transactions')}
+                            {t('restaurants.metrics.transactions')}
                           </span>
                                 <span className="font-semibold text-sm text-[#111827]">
                             {restaurant.total_orders}
@@ -590,7 +623,7 @@ const Restaurants: NextPage = () => {
                                   href={`/admin/restaurants/detail/${restaurant.id}`}
                                   className="flex-1 inline-flex items-center justify-center px-3 py-2 text-sm font-medium rounded-lg transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200"
                               >
-                                {t('restaurants.profile.viewDetails')}
+                                {t('restaurants.actions.viewDetails')}
                               </Link>
                               <button
                                   onClick={(e) => {
@@ -608,7 +641,7 @@ const Restaurants: NextPage = () => {
                                   }}
                                   className="flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors bg-red-50 text-red-600 hover:bg-red-100"
                               >
-                                {t('restaurants.actions.deleteAction')}
+                                {t('restaurants.actions.deletePermanent')}
                               </button>
                             </div>
                         ) : (
@@ -620,7 +653,7 @@ const Restaurants: NextPage = () => {
                                         : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
                                 }`}
                             >
-                              {restaurant.status === 'onboarding' ? t('restaurants.actions.continueOnboarding') : t('restaurants.profile.viewDetails')}
+                              {restaurant.status === 'onboarding' ? t('restaurants.actions.continueOnboarding') : t('restaurants.actions.viewDetails')}
                               <ChevronRightIcon className="ml-2 h-4 w-4" />
                             </Link>
                         )}
@@ -635,14 +668,14 @@ const Restaurants: NextPage = () => {
                     <BuildingStorefrontIcon className="mx-auto h-12 w-12 text-gray-400" />
                     <h3 className="mt-4 text-base font-medium text-[#111827]">
                       {statusFilter === 'deleted'
-                          ? t('restaurants.emptyState.noArchived')
-                          : t('restaurants.emptyState.noFound')
+                          ? t('restaurants.emptyState.noArchived.title')
+                          : t('restaurants.emptyState.noFound.title')
                       }
                     </h3>
                     <p className="mt-2 text-sm text-[#6B7280]">
                       {statusFilter === 'deleted'
-                          ? t('restaurants.emptyState.archivedDescription')
-                          : t('restaurants.emptyState.foundDescription')
+                          ? t('restaurants.emptyState.noArchived.description')
+                          : t('restaurants.emptyState.noFound.description')
                       }
                     </p>
                     {statusFilter !== 'deleted' && (

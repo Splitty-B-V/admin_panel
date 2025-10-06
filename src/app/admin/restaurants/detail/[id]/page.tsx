@@ -34,7 +34,10 @@ import {
   ExclamationTriangleIcon,
   XMarkIcon,
   EyeIcon,
-  ArrowDownTrayIcon, EyeSlashIcon,
+  ArrowDownTrayIcon,
+  EyeSlashIcon,
+  ArchiveBoxIcon,
+  ArrowPathIcon,
 } from '@heroicons/react/24/outline'
 import {env} from "@/lib/env"
 
@@ -121,6 +124,39 @@ async function getRestaurantDetail(restaurantId: number): Promise<RestaurantDeta
   return response.json()
 }
 
+async function archiveRestaurant(restaurantId: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/super_admin/restaurants/${restaurantId}/archive`, {
+    method: 'PATCH',
+    headers: getAuthHeaders()
+  })
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(errorData.detail || 'Failed to archive restaurant')
+  }
+}
+
+async function deleteRestaurant(restaurantId: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/super_admin/restaurants/${restaurantId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders()
+  })
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(errorData.detail || 'Failed to delete restaurant')
+  }
+}
+
+async function restoreRestaurant(restaurantId: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/super_admin/restaurants/${restaurantId}/restore`, {
+    method: 'PATCH',
+    headers: getAuthHeaders()
+  })
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(errorData.detail || 'Failed to restore restaurant')
+  }
+}
+
 async function getRestaurantTables(restaurantId: number): Promise<QRTable[]> {
   const response = await fetch(`${API_BASE_URL}/super_admin/restaurants/${restaurantId}/tables/qr/all`, {
     headers: getAuthHeaders()
@@ -179,6 +215,108 @@ const QRCodeDisplay: React.FC<{ url: string; size?: number }> = ({ url, size = 1
   return <img src={qrCodeUrl} alt="QR Code" className="rounded-lg" />
 }
 
+// Archive/Delete Confirmation Modal
+const ArchiveDeleteModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  restaurant: RestaurantDetailResponse | null;
+  onConfirm: () => void;
+  isArchive: boolean;
+}> = ({ isOpen, onClose, restaurant, onConfirm, isArchive }) => {
+  const [confirmText, setConfirmText] = useState('')
+
+  if (!isOpen || !restaurant) return null
+
+  const canConfirm = confirmText === restaurant.name
+
+  return (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="bg-white rounded-xl p-6 max-w-lg w-full mx-4">
+          <div className="flex items-center mb-6">
+            <div className={`p-3 rounded-full ${isArchive ? 'bg-yellow-100' : 'bg-red-100'}`}>
+              {isArchive ? (
+                  <ArchiveBoxIcon className="h-6 w-6 text-yellow-600" />
+              ) : (
+                  <TrashIcon className="h-6 w-6 text-red-600" />
+              )}
+            </div>
+            <div className="ml-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {isArchive ? 'Archive Restaurant' : 'Delete Restaurant Permanently'}
+              </h3>
+              <p className="text-sm text-gray-500">
+                {isArchive ? 'Temporarily disable this restaurant' : 'This action cannot be undone'}
+              </p>
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <p className="text-gray-600 mb-4">
+              {isArchive
+                  ? `Are you sure you want to archive ${restaurant.name}? This will temporarily disable the restaurant.`
+                  : `Are you sure you want to permanently delete ${restaurant.name}? This action cannot be undone and all data will be lost.`
+              }
+            </p>
+
+            {!isArchive && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                  <div className="flex">
+                    <ExclamationTriangleIcon className="h-5 w-5 text-red-400 mr-3 mt-0.5" />
+                    <div>
+                      <h4 className="text-sm font-medium text-red-800">
+                        Warning: This will permanently delete
+                      </h4>
+                      <ul className="mt-2 text-sm text-red-700 list-disc list-inside">
+                        <li>All restaurant data</li>
+                        <li>All table configurations</li>
+                        <li>All staff accounts</li>
+                        <li>All transaction history</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+            )}
+
+            {!isArchive && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Type <span className="font-semibold">{restaurant.name}</span> to confirm:
+                  </label>
+                  <input
+                      type="text"
+                      value={confirmText}
+                      onChange={(e) => setConfirmText(e.target.value)}
+                      placeholder="Restaurant name"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                  />
+                </div>
+            )}
+          </div>
+
+          <div className="flex gap-3">
+            <button
+                onClick={onClose}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+            >
+              Cancel
+            </button>
+            <button
+                onClick={onConfirm}
+                disabled={!isArchive && !canConfirm}
+                className={`flex-1 px-4 py-2 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed ${
+                    isArchive
+                        ? 'bg-yellow-600 text-white hover:bg-yellow-700'
+                        : 'bg-red-600 text-white hover:bg-red-700'
+                }`}
+            >
+              {isArchive ? 'Archive Restaurant' : 'Delete Permanently'}
+            </button>
+          </div>
+        </div>
+      </div>
+  )
+}
+
 // Table management modal component
 const TableManagementModal: React.FC<{
   isOpen: boolean;
@@ -227,6 +365,7 @@ const TableManagementModal: React.FC<{
       const allTablesData = tables.map(table => ({
         'Table #': table.table_number,
         'Section': table.table_section || 'No Section',
+        'Design': table.table_design,
         'QR Link': table.table_link,
         'Status': table.is_active ? 'Active' : 'Inactive'
       }))
@@ -235,6 +374,7 @@ const TableManagementModal: React.FC<{
       allTablesWs['!cols'] = [
         { wch: 10 }, // Table #
         { wch: 15 }, // Section
+        { wch: 15 }, // Design
         { wch: 50 }, // QR Link
         { wch: 12 }  // Status
       ]
@@ -252,6 +392,7 @@ const TableManagementModal: React.FC<{
       Object.entries(groupedBySections).forEach(([sectionName, sectionTables]) => {
         const sectionData = sectionTables.map(table => ({
           'Table #': table.table_number,
+          'Design': table.table_design,
           'QR Link': table.table_link,
           'Status': table.is_active ? 'Active' : 'Inactive'
         }))
@@ -259,6 +400,7 @@ const TableManagementModal: React.FC<{
         const sectionWs = XLSX.utils.json_to_sheet(sectionData)
         sectionWs['!cols'] = [
           { wch: 10 }, // Table #
+          { wch: 15 }, // Design
           { wch: 50 }, // QR Link
           { wch: 10 }  // Status
         ]
@@ -573,9 +715,10 @@ const RestaurantDetail: NextPage = () => {
   const [restaurant, setRestaurant] = useState<RestaurantDetailResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [actionLoading, setActionLoading] = useState(false)
 
   // Modal states
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showArchiveDeleteModal, setShowArchiveDeleteModal] = useState(false)
   const [showPOSModal, setShowPOSModal] = useState(false)
   const [showTableModal, setShowTableModal] = useState(false)
 
@@ -612,7 +755,7 @@ const RestaurantDetail: NextPage = () => {
 
   // Lock body scroll when modals are open
   useEffect(() => {
-    if (showPOSModal || showDeleteModal || showTableModal) {
+    if (showPOSModal || showArchiveDeleteModal || showTableModal) {
       document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = 'unset'
@@ -621,12 +764,45 @@ const RestaurantDetail: NextPage = () => {
     return () => {
       document.body.style.overflow = 'unset'
     }
-  }, [showPOSModal, showDeleteModal, showTableModal])
+  }, [showPOSModal, showArchiveDeleteModal, showTableModal])
 
-  const handleDeleteConfirm = () => {
-    // TODO: Implement real delete API call
-    console.log('Delete restaurant:', id)
-    router.push('/restaurants')
+  const handleArchiveRestore = async () => {
+    if (!restaurant) return
+
+    try {
+      setActionLoading(true)
+
+      if (restaurant.is_active) {
+        // Archive restaurant
+        await archiveRestaurant(parseInt(id))
+        setRestaurant({...restaurant, is_active: false})
+      } else {
+        // Restore restaurant
+        await restoreRestaurant(parseInt(id))
+        setRestaurant({...restaurant, is_active: true})
+      }
+
+      setShowArchiveDeleteModal(false)
+    } catch (err: any) {
+      console.error('Failed to archive/restore restaurant:', err)
+      setError(err.message || 'Failed to update restaurant status')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handlePermanentDelete = async () => {
+    if (!restaurant) return
+
+    try {
+      setActionLoading(true)
+      await deleteRestaurant(parseInt(id))
+      router.push('/admin/restaurants')
+    } catch (err: any) {
+      console.error('Failed to delete restaurant:', err)
+      setError(err.message || 'Failed to delete restaurant')
+      setActionLoading(false)
+    }
   }
 
   const StripeIcon = () => (
@@ -671,7 +847,10 @@ const RestaurantDetail: NextPage = () => {
     return (
         <SmartLayout>
           <div className="min-h-screen bg-[#F9FAFB] flex items-center justify-center">
-            <div className="text-gray-900">Loading restaurant details...</div>
+            <div className="text-center">
+              <ArrowPathIcon className="mx-auto h-12 w-12 text-gray-400 animate-spin" />
+              <h3 className="mt-4 text-base font-medium text-gray-900">Loading restaurant details...</h3>
+            </div>
           </div>
         </SmartLayout>
     )
@@ -733,13 +912,46 @@ const RestaurantDetail: NextPage = () => {
                   </p>
                 </div>
                 <div className="flex gap-3">
-                  <button
-                      onClick={() => setShowDeleteModal(true)}
-                      className="inline-flex items-center px-4 py-2.5 border border-red-300 text-red-600 font-medium rounded-lg hover:bg-red-50 transition-all"
-                  >
-                    <TrashIcon className="h-5 w-5 mr-2" />
-                    Archive
-                  </button>
+                  {restaurant.is_active ? (
+                      // Show Archive button for active restaurants
+                      <button
+                          onClick={() => setShowArchiveDeleteModal(true)}
+                          disabled={actionLoading}
+                          className="inline-flex items-center px-4 py-2.5 border border-yellow-300 text-yellow-600 font-medium rounded-lg hover:bg-yellow-50 transition-all disabled:opacity-50"
+                      >
+                        {actionLoading ? (
+                            <ArrowPathIcon className="h-5 w-5 mr-2 animate-spin" />
+                        ) : (
+                            <ArchiveBoxIcon className="h-5 w-5 mr-2" />
+                        )}
+                        Archive
+                      </button>
+                  ) : (
+                      // Show Restore and Delete buttons for archived restaurants
+                      <>
+                        <button
+                            onClick={handleArchiveRestore}
+                            disabled={actionLoading}
+                            className="inline-flex items-center px-4 py-2.5 border border-green-300 text-green-600 font-medium rounded-lg hover:bg-green-50 transition-all disabled:opacity-50"
+                        >
+                          {actionLoading ? (
+                              <ArrowPathIcon className="h-5 w-5 mr-2 animate-spin" />
+                          ) : (
+                              <ArrowPathIcon className="h-5 w-5 mr-2" />
+                          )}
+                          Restore
+                        </button>
+                        <button
+                            onClick={() => setShowArchiveDeleteModal(true)}
+                            disabled={actionLoading}
+                            className="inline-flex items-center px-4 py-2.5 border border-red-300 text-red-600 font-medium rounded-lg hover:bg-red-50 transition-all disabled:opacity-50"
+                        >
+                          <TrashIcon className="h-5 w-5 mr-2" />
+                          Delete Permanently
+                        </button>
+                      </>
+                  )}
+
                   <Link
                       href={`/restaurants/${id}/edit`}
                       className="inline-flex items-center px-4 py-2.5 bg-gradient-to-r from-green-500 to-green-600 text-white font-medium rounded-lg hover:from-green-600 hover:to-green-700 transition-all shadow-sm"
@@ -749,6 +961,23 @@ const RestaurantDetail: NextPage = () => {
                   </Link>
                 </div>
               </div>
+
+              {/* Archived Banner */}
+              {!restaurant.is_active && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div className="flex items-center">
+                      <ArchiveBoxIcon className="h-5 w-5 text-yellow-600 mr-2" />
+                      <div>
+                        <h4 className="text-sm font-medium text-yellow-800">
+                          This restaurant is archived
+                        </h4>
+                        <p className="text-sm text-yellow-700">
+                          The restaurant is temporarily disabled. Restore it to make it active again.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+              )}
 
               {/* Restaurant Profile Card */}
               <div className="rounded-xl overflow-hidden bg-white shadow-sm">
@@ -766,10 +995,10 @@ const RestaurantDetail: NextPage = () => {
                   <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${
                       restaurant.is_active
                           ? 'bg-green-50 text-green-700 border border-green-200'
-                          : 'bg-gray-50 text-gray-600 border border-gray-200'
+                          : 'bg-yellow-50 text-yellow-700 border border-yellow-200'
                   }`}>
                     <CheckCircleIcon className="h-3.5 w-3.5 mr-1" />
-                    {restaurant.is_active ? 'Active' : 'Inactive'}
+                    {restaurant.is_active ? 'Active' : 'Archived'}
                   </span>
                   </div>
                 </div>
@@ -832,6 +1061,7 @@ const RestaurantDetail: NextPage = () => {
                 </div>
               </div>
 
+              {/* Rest of the component remains the same... */}
               {/* Content Grid */}
               <div className="space-y-8">
                 {/* Setup Essentials Section */}
@@ -1237,41 +1467,14 @@ const RestaurantDetail: NextPage = () => {
             restaurantName={restaurant.name}
         />
 
-        {/* Delete Modal - Simple confirmation for now */}
-        {showDeleteModal && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-              <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 border border-gray-200">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center">
-                    <div className="p-2 bg-red-500/20 rounded-lg">
-                      <TrashIcon className="h-6 w-6 text-red-500" />
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-900 ml-3">Archive Restaurant</h3>
-                  </div>
-                </div>
-
-                <p className="text-gray-600 mb-6">
-                  Are you sure you want to archive <span className="font-semibold">{restaurant.name}</span>?
-                  This will temporarily disable the restaurant.
-                </p>
-
-                <div className="flex gap-3">
-                  <button
-                      onClick={() => setShowDeleteModal(false)}
-                      className="flex-1 px-6 py-3 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                      onClick={handleDeleteConfirm}
-                      className="flex-1 px-6 py-3 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition"
-                  >
-                    Archive
-                  </button>
-                </div>
-              </div>
-            </div>
-        )}
+        {/* Archive/Delete Confirmation Modal */}
+        <ArchiveDeleteModal
+            isOpen={showArchiveDeleteModal}
+            onClose={() => setShowArchiveDeleteModal(false)}
+            restaurant={restaurant}
+            onConfirm={restaurant.is_active ? handleArchiveRestore : handlePermanentDelete}
+            isArchive={restaurant.is_active}
+        />
 
         {/* POS Integration Modal */}
         {showPOSModal && (

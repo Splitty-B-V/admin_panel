@@ -31,6 +31,7 @@ import {
 } from '@heroicons/react/24/outline'
 import {env} from "@/lib/env";
 import SmartLayout from "@/components/common/SmartLayout";
+import { useLanguage } from '@/contexts/LanguageContext'
 
 // Helper function to get auth headers
 function getAuthHeaders() {
@@ -130,6 +131,16 @@ async function skipOnboardingStep(restaurantId: number, step: number) {
     return response.json()
 }
 
+async function checkDomainAvailability(restaurantId: number, domain: string) {
+    const response = await fetch(`${API_BASE_URL}/super_admin/restaurants/${restaurantId}/onboarding/qr/check-domain`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ domain })
+    })
+    if (!response.ok) throw new Error('Failed to check domain availability')
+    return response.json()
+}
+
 interface OnboardingStep {
     id: number
     name: string
@@ -137,52 +148,53 @@ interface OnboardingStep {
     icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
 }
 
-const OnboardingSteps: OnboardingStep[] = [
-    {
-        id: 1,
-        name: 'Personnel',
-        description: 'Add team members and managers',
-        icon: UserGroupIcon,
-    },
-    {
-        id: 2,
-        name: 'Stripe',
-        description: 'Configure payment processing',
-        icon: CreditCardIcon,
-    },
-    {
-        id: 3,
-        name: 'POS System',
-        description: 'Connect point of sale integration',
-        icon: WifiIcon,
-    },
-    {
-        id: 4,
-        name: 'QR Stands',
-        description: 'Setup table QR code stands',
-        icon: QrCodeIcon,
-    },
-    {
-        id: 5,
-        name: 'Google Reviews',
-        description: 'Configure review collection',
-        icon: StarIcon,
-    },
-    {
-        id: 6,
-        name: 'Telegram',
-        description: 'Setup notifications',
-        icon: ChatBubbleLeftRightIcon,
-    }
-]
-
 type StepStatus = 'completed' | 'current' | 'available' | 'locked'
 
 export default function SuperAdminOnboardingPage() {
+    const { t } = useLanguage()
     const params = useParams()
     const router = useRouter()
     const searchParams = useSearchParams()
     const restaurantId = parseInt(params.id as string)
+
+    const OnboardingSteps: OnboardingStep[] = [
+        {
+            id: 1,
+            name: t('onboarding.steps.personnel.name'),
+            description: t('onboarding.steps.personnel.description'),
+            icon: UserGroupIcon,
+        },
+        {
+            id: 2,
+            name: t('onboarding.steps.stripe.name'),
+            description: t('onboarding.steps.stripe.description'),
+            icon: CreditCardIcon,
+        },
+        {
+            id: 3,
+            name: t('onboarding.steps.pos.name'),
+            description: t('onboarding.steps.pos.description'),
+            icon: WifiIcon,
+        },
+        {
+            id: 4,
+            name: t('onboarding.steps.qr.name'),
+            description: t('onboarding.steps.qr.description'),
+            icon: QrCodeIcon,
+        },
+        {
+            id: 5,
+            name: t('onboarding.steps.googleReviews.name'),
+            description: t('onboarding.steps.googleReviews.description'),
+            icon: StarIcon,
+        },
+        {
+            id: 6,
+            name: t('onboarding.steps.telegram.name'),
+            description: t('onboarding.steps.telegram.description'),
+            icon: ChatBubbleLeftRightIcon,
+        }
+    ]
 
     // State
     const [restaurant, setRestaurant] = useState<any | null>(null)
@@ -192,6 +204,34 @@ export default function SuperAdminOnboardingPage() {
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState<string | null>(null)
+
+    // Field-level error states
+    const [posErrors, setPosErrors] = useState({
+        pos_type: '',
+        username: '',
+        password: '',
+        base_url: ''
+    })
+
+    const [personnelErrors, setPersonnelErrors] = useState({
+        first_name: '',
+        last_name: '',
+        email: '',
+        password: ''
+    })
+
+    const [qrErrors, setQrErrors] = useState({
+        domain: '',
+        tables: ''
+    })
+
+    const [googleErrors, setGoogleErrors] = useState({
+        place_id: ''
+    })
+
+    const [telegramErrors, setTelegramErrors] = useState({
+        restaurant_name: ''
+    })
 
     // Step data states
     const [personnelData, setPersonnelData] = useState<any[]>([])
@@ -211,7 +251,7 @@ export default function SuperAdminOnboardingPage() {
         selected_tables: {}
     })
     const [tableSections, setTableSections] = useState([
-        { id: 1, name: 'Inside', table_numbers: '', selected_design: 1 }
+        { id: 1, name: t('onboarding.qr.sections.inside'), table_numbers: '', selected_design: 1 }
     ])
 
     const [googleReviewData, setGoogleReviewData] = useState<any>({
@@ -251,6 +291,197 @@ export default function SuperAdminOnboardingPage() {
     const [telegramCreating, setTelegramCreating] = useState(false)
     const [telegramGroupLink, setTelegramGroupLink] = useState<string>('')
 
+    // Field validation functions
+    const validatePersonnelStep = () => {
+        const errors = {
+            first_name: '',
+            last_name: '',
+            email: '',
+            password: ''
+        }
+
+        let hasErrors = false
+
+        if (personnelData.length === 0) {
+            // If no personnel added, check if form is being filled
+            if (showPersonForm) {
+                if (!newPerson.first_name.trim()) {
+                    errors.first_name = t('onboarding.personnel.validation.firstNameRequired')
+                    hasErrors = true
+                }
+                if (!newPerson.last_name.trim()) {
+                    errors.last_name = t('onboarding.personnel.validation.lastNameRequired')
+                    hasErrors = true
+                }
+                if (!newPerson.email.trim()) {
+                    errors.email = t('onboarding.personnel.validation.emailRequired')
+                    hasErrors = true
+                }
+                if (!newPerson.password.trim()) {
+                    errors.password = t('onboarding.personnel.validation.passwordRequired')
+                    hasErrors = true
+                }
+            } else {
+                // No personnel added and form not shown
+                setError(t('onboarding.personnel.validation.atLeastOneMember'))
+                return false
+            }
+        }
+
+        setPersonnelErrors(errors)
+        return !hasErrors
+    }
+
+    const validatePOSStep = () => {
+        const errors = {
+            pos_type: '',
+            username: '',
+            password: '',
+            base_url: ''
+        }
+
+        let hasErrors = false
+
+        if (!posData.pos_type.trim()) {
+            errors.pos_type = t('onboarding.pos.validation.selectSystem')
+            hasErrors = true
+        }
+        if (!posData.username.trim()) {
+            errors.username = t('onboarding.pos.validation.usernameRequired')
+            hasErrors = true
+        }
+        if (!posData.password.trim()) {
+            errors.password = t('onboarding.pos.validation.passwordRequired')
+            hasErrors = true
+        }
+        if (!posData.base_url.trim()) {
+            errors.base_url = t('onboarding.pos.validation.apiUrlRequired')
+            hasErrors = true
+        }
+
+        setPosErrors(errors)
+        return !hasErrors
+    }
+
+    const validateQRStep = () => {
+        const errors = {
+            domain: '',
+            tables: ''
+        }
+
+        let hasErrors = false
+
+        if (!qrStandData.domain.trim()) {
+            errors.domain = t('onboarding.qr.validation.domainRequired')
+            hasErrors = true
+        } else if (domainStatus !== 'available') {
+            errors.domain = t('onboarding.qr.validation.checkDomainFirst')
+            hasErrors = true
+        }
+
+        const hasValidTables = tableSections.some(section => {
+            const numbers = section.table_numbers.split(',')
+                .map(n => parseInt(n.trim()))
+                .filter(n => !isNaN(n) && n > 0)
+            return numbers.length > 0
+        })
+
+        if (!hasValidTables) {
+            errors.tables = t('onboarding.qr.validation.atLeastOneTable')
+            hasErrors = true
+        }
+
+        setQrErrors(errors)
+        return !hasErrors
+    }
+
+    const validateGoogleStep = () => {
+        const errors = {
+            place_id: ''
+        }
+
+        let hasErrors = false
+
+        if (!googleReviewData.place_id.trim()) {
+            errors.place_id = t('onboarding.google.validation.placeIdRequired')
+            hasErrors = true
+        }
+
+        setGoogleErrors(errors)
+        return !hasErrors
+    }
+
+    const validateTelegramStep = () => {
+        const errors = {
+            restaurant_name: ''
+        }
+
+        let hasErrors = false
+
+        if (!telegramData.restaurant_name.trim()) {
+            errors.restaurant_name = t('onboarding.telegram.validation.restaurantNameRequired')
+            hasErrors = true
+        }
+
+        setTelegramErrors(errors)
+        return !hasErrors
+    }
+
+    // Reset all form states when restaurant ID changes
+    useEffect(() => {
+        if (restaurantId) {
+            setPersonnelData([])
+            setNewPerson({
+                first_name: '',
+                last_name: '',
+                email: '',
+                phone: '',
+                password: '',
+                passwordConfirm: '',
+                role: 'manager'
+            })
+            setPosData({
+                pos_type: '',
+                username: '',
+                password: '',
+                base_url: '',
+                environment: 'production',
+                is_active: true
+            })
+            setStripeData({ connected: false })
+            setQrStandData({
+                domain: '',
+                notes: '',
+                selected_tables: {}
+            })
+            setTableSections([
+                { id: 1, name: t('onboarding.qr.sections.inside'), table_numbers: '', selected_design: 1 }
+            ])
+            setGoogleReviewData({
+                place_id: '',
+                review_link: ''
+            })
+            setTelegramData({
+                restaurant_name: '',
+                configured: false,
+                group_link: ''
+            })
+            setShowPersonForm(false)
+            setEmailError('')
+            setPhoneError('')
+            setPasswordError('')
+            setCurrentStep(0)
+            setShowWelcome(true)
+
+            // Reset all error states
+            setPosErrors({ pos_type: '', username: '', password: '', base_url: '' })
+            setPersonnelErrors({ first_name: '', last_name: '', email: '', password: '' })
+            setQrErrors({ domain: '', tables: '' })
+            setGoogleErrors({ place_id: '' })
+            setTelegramErrors({ restaurant_name: '' })
+        }
+    }, [restaurantId, t])
+
     // Load initial data
     useEffect(() => {
         if (restaurantId) {
@@ -264,9 +495,9 @@ export default function SuperAdminOnboardingPage() {
         const step = searchParams.get('step')
 
         if (error === 'stripe_failed') {
-            setError('Stripe connection failed. Please try again.')
+            setError(t('onboarding.stripe.errors.connectionFailed'))
         } else if (error === 'stripe_error') {
-            setError('An error occurred during Stripe setup. Please try again.')
+            setError(t('onboarding.stripe.errors.setupError'))
         }
 
         if (step) {
@@ -276,12 +507,56 @@ export default function SuperAdminOnboardingPage() {
                 setShowWelcome(false)
             }
         }
-    }, [searchParams])
+    }, [searchParams, t])
 
     const loadRestaurantData = async () => {
         try {
             setLoading(true)
             setError(null)
+
+            // Reset all form states when loading new restaurant
+            setPersonnelData([])
+            setNewPerson({
+                first_name: '',
+                last_name: '',
+                email: '',
+                phone: '',
+                password: '',
+                passwordConfirm: '',
+                role: 'manager'
+            })
+            setPosData({
+                pos_type: '',
+                username: '',
+                password: '',
+                base_url: '',
+                environment: 'production',
+                is_active: true
+            })
+            setStripeData({ connected: false })
+            setQrStandData({
+                domain: '',
+                notes: '',
+                selected_tables: {}
+            })
+            setTableSections([
+                { id: 1, name: t('onboarding.qr.sections.inside'), table_numbers: '', selected_design: 1 }
+            ])
+            setGoogleReviewData({
+                place_id: '',
+                review_link: ''
+            })
+            setShowPersonForm(false)
+            setEmailError('')
+            setPhoneError('')
+            setPasswordError('')
+
+            // Reset all error states
+            setPosErrors({ pos_type: '', username: '', password: '', base_url: '' })
+            setPersonnelErrors({ first_name: '', last_name: '', email: '', password: '' })
+            setQrErrors({ domain: '', tables: '' })
+            setGoogleErrors({ place_id: '' })
+            setTelegramErrors({ restaurant_name: '' })
 
             const [restaurantData, progressData] = await Promise.all([
                 getRestaurantDetail(restaurantId),
@@ -316,7 +591,7 @@ export default function SuperAdminOnboardingPage() {
 
         } catch (err: any) {
             console.error('Failed to load restaurant data:', err)
-            setError(err.message || 'Failed to load restaurant data')
+            setError(err.message || t('onboarding.errors.loadRestaurantData'))
         } finally {
             setLoading(false)
         }
@@ -347,80 +622,73 @@ export default function SuperAdminOnboardingPage() {
         }
     }
 
-    // NEW: Unified step handler that saves and moves to next step
+    // Updated step handler with validation
     const handleNextStep = async (stepNumber: number) => {
         try {
             setSaving(true)
-            setError(null)
+            setError(null) // Clear general error
+
+            // Clear all field errors first
+            setPosErrors({ pos_type: '', username: '', password: '', base_url: '' })
+            setPersonnelErrors({ first_name: '', last_name: '', email: '', password: '' })
+            setQrErrors({ domain: '', tables: '' })
+            setGoogleErrors({ place_id: '' })
+            setTelegramErrors({ restaurant_name: '' })
+
+            let isValid = false
 
             switch (stepNumber) {
                 case 1:
-                    if (personnelData.length === 0) {
-                        setError('Please add at least one team member')
-                        return
+                    isValid = validatePersonnelStep()
+                    if (isValid) {
+                        await completePersonnelStep(restaurantId, { personnel: personnelData })
                     }
-                    await completePersonnelStep(restaurantId, { personnel: personnelData })
                     break
                 case 3:
-                    if (!posData.pos_type || !posData.username || !posData.password || !posData.base_url) {
-                        setError('Please fill in all required POS fields')
-                        return
+                    isValid = validatePOSStep()
+                    if (isValid) {
+                        await completePOSStep(restaurantId, posData)
                     }
-                    await completePOSStep(restaurantId, posData)
                     break
                 case 4:
-                    if (!qrStandData.domain.trim()) {
-                        setError('Please enter a domain name')
-                        return
-                    }
-                    if (domainStatus !== 'available') {
-                        setError('Please check domain availability first')
-                        return
-                    }
-                    const hasValidTables = tableSections.some(section => {
-                        const numbers = section.table_numbers.split(',')
-                            .map(n => parseInt(n.trim()))
-                            .filter(n => !isNaN(n) && n > 0)
-                        return numbers.length > 0
-                    })
-                    if (!hasValidTables) {
-                        setError('Please specify at least one table number')
-                        return
-                    }
-                    const selected_tables = {}
-                    tableSections.forEach(section => {
-                        if (section.table_numbers.trim()) {
-                            const table_numbers = section.table_numbers.split(',')
-                                .map(n => parseInt(n.trim()))
-                                .filter(n => !isNaN(n) && n > 0)
+                    isValid = validateQRStep()
+                    if (isValid) {
+                        const selected_tables = {}
+                        tableSections.forEach(section => {
+                            if (section.table_numbers.trim()) {
+                                const table_numbers = section.table_numbers.split(',')
+                                    .map(n => parseInt(n.trim()))
+                                    .filter(n => !isNaN(n) && n > 0)
 
-                            if (table_numbers.length > 0) {
-                                selected_tables[section.name.toLowerCase().replace(/\s+/g, '_')] = {
-                                    table_numbers,
-                                    selected_design: section.selected_design
+                                if (table_numbers.length > 0) {
+                                    selected_tables[section.name.toLowerCase().replace(/\s+/g, '_')] = {
+                                        table_numbers,
+                                        selected_design: section.selected_design
+                                    }
                                 }
                             }
-                        }
-                    })
-                    await completeQRStandsStep(restaurantId, {
-                        domain: qrStandData.domain,
-                        notes: qrStandData.notes,
-                        selected_tables
-                    })
+                        })
+                        await completeQRStandsStep(restaurantId, {
+                            domain: qrStandData.domain,
+                            notes: qrStandData.notes,
+                            selected_tables
+                        })
+                    }
                     break
                 case 5:
-                    if (!googleReviewData.place_id) {
-                        setError('Please provide a Google Place ID')
-                        return
+                    isValid = validateGoogleStep()
+                    if (isValid) {
+                        await completeGoogleReviewsStep(restaurantId, googleReviewData)
                     }
-                    await completeGoogleReviewsStep(restaurantId, googleReviewData)
                     break
             }
 
-            await refreshProgress()
-            setCurrentStep(stepNumber + 1)
+            if (isValid) {
+                await refreshProgress()
+                setCurrentStep(stepNumber + 1)
+            }
         } catch (err: any) {
-            setError(err.message || `Failed to save step ${stepNumber} data`)
+            setError(err.message || t('onboarding.errors.saveStepData', { step: stepNumber }))
         } finally {
             setSaving(false)
         }
@@ -435,19 +703,19 @@ export default function SuperAdminOnboardingPage() {
 
         // Validate
         if (newPerson.password !== newPerson.passwordConfirm) {
-            setPasswordError('Passwords do not match')
+            setPasswordError(t('onboarding.personnel.validation.passwordsNotMatch'))
             return
         }
 
         if (newPerson.password.length < 8) {
-            setPasswordError('Password must be at least 8 characters')
+            setPasswordError(t('onboarding.personnel.validation.passwordMinLength'))
             return
         }
 
         // Check if email already exists in current personnel list
         const emailExists = personnelData.some(p => p.email.toLowerCase() === newPerson.email.toLowerCase())
         if (emailExists) {
-            setEmailError('This email is already in use')
+            setEmailError(t('onboarding.personnel.validation.emailExists'))
             return
         }
 
@@ -497,10 +765,10 @@ export default function SuperAdminOnboardingPage() {
                 // Redirect to Stripe OAuth
                 window.location.href = data.oauth_url
             } else {
-                setError('Failed to generate Stripe OAuth URL')
+                setError(t('onboarding.stripe.errors.generateOAuthUrl'))
             }
         } catch (err: any) {
-            setError('Failed to start Stripe connection')
+            setError(t('onboarding.stripe.errors.startConnection'))
         } finally {
             setStripeConnecting(false)
         }
@@ -521,37 +789,17 @@ export default function SuperAdminOnboardingPage() {
                 setCurrentStep(3)
             }
         } catch (err: any) {
-            setError(err.message || 'Failed to save Stripe configuration')
+            setError(err.message || t('onboarding.stripe.errors.saveConfiguration'))
         } finally {
             setSaving(false)
         }
-    }
-
-    async function checkDomainAvailability(restaurantId: number, domain: string) {
-        const response = await fetch(`${API_BASE_URL}/super_admin/restaurants/${restaurantId}/onboarding/qr/check-domain`, {
-            method: 'POST',
-            headers: getAuthHeaders(),
-            body: JSON.stringify({ domain })
-        })
-        if (!response.ok) throw new Error('Failed to check domain availability')
-        return response.json()
-    }
-
-    async function configureQRStands(restaurantId: number, data: any) {
-        const response = await fetch(`${API_BASE_URL}/super_admin/restaurants/${restaurantId}/onboarding/qr/configure`, {
-            method: 'POST',
-            headers: getAuthHeaders(),
-            body: JSON.stringify(data)
-        })
-        if (!response.ok) throw new Error('Failed to configure QR stands')
-        return response.json()
     }
 
     const addTableSection = () => {
         const newId = Math.max(...tableSections.map(s => s.id)) + 1
         setTableSections([...tableSections, {
             id: newId,
-            name: `Section ${newId}`,
+            name: t('onboarding.qr.sections.section', { number: newId }),
             table_numbers: '',
             selected_design: 1
         }])
@@ -571,13 +819,13 @@ export default function SuperAdminOnboardingPage() {
 
     const handleCheckDomain = async () => {
         if (!qrStandData.domain.trim()) {
-            setError('Please enter a domain name')
+            setQrErrors({...qrErrors, domain: t('onboarding.qr.validation.enterDomain')})
             return
         }
 
         try {
             setDomainChecking(true)
-            setError(null)
+            setQrErrors({...qrErrors, domain: ''})
 
             const result = await checkDomainAvailability(restaurantId, qrStandData.domain)
 
@@ -585,16 +833,15 @@ export default function SuperAdminOnboardingPage() {
             setDomainStatus(result.available ? 'available' : 'taken')
             setDomainMessage(result.message)
         } catch (err: any) {
-            setError(err.message || 'Failed to check domain availability')
+            setError(err.message || t('onboarding.qr.errors.checkDomainAvailability'))
         } finally {
             setDomainChecking(false)
         }
     }
 
-    // NEW: Final onboarding completion - only for Telegram step
+    // Final onboarding completion - only for Telegram step
     const handleCompleteOnboarding = async () => {
-        if (!telegramData.restaurant_name) {
-            setError('Please provide a restaurant name')
+        if (!validateTelegramStep()) {
             return
         }
 
@@ -605,9 +852,8 @@ export default function SuperAdminOnboardingPage() {
             const result = await completeTelegramStep(restaurantId, telegramData)
 
             router.push('/admin/restaurants')
-            // }
         } catch (err: any) {
-            setError(err.message || 'Failed to create Telegram group')
+            setError(err.message || t('onboarding.telegram.errors.createGroup'))
         } finally {
             setTelegramCreating(false)
         }
@@ -624,10 +870,10 @@ export default function SuperAdminOnboardingPage() {
                 setCurrentStep(stepNumber + 1)
             } else {
                 // Last step skipped - onboarding complete
-                router.push('/restaurants')
+                router.push('/admin/restaurants')
             }
         } catch (err: any) {
-            setError(err.message || 'Failed to skip step')
+            setError(err.message || t('onboarding.errors.skipStep'))
         } finally {
             setSaving(false)
         }
@@ -641,9 +887,9 @@ export default function SuperAdminOnboardingPage() {
                         <div className="bg-white rounded-lg p-6 border border-gray-200">
                             <div className="flex items-center justify-between mb-6">
                                 <div>
-                                    <h3 className="text-xl font-semibold text-gray-900 mb-1">Add Personnel</h3>
+                                    <h3 className="text-xl font-semibold text-gray-900 mb-1">{t('onboarding.personnel.title')}</h3>
                                     <p className="text-sm text-gray-500">
-                                        Create team member accounts • {personnelData.length} users added
+                                        {t('onboarding.personnel.subtitle', { count: personnelData.length })}
                                     </p>
                                 </div>
                                 <div className="p-3 bg-gray-50 rounded-lg">
@@ -654,7 +900,7 @@ export default function SuperAdminOnboardingPage() {
                             {/* Personnel List */}
                             {personnelData.length > 0 && (
                                 <div className="mb-8">
-                                    <h4 className="text-sm font-medium text-gray-600 mb-4">Added Users</h4>
+                                    <h4 className="text-sm font-medium text-gray-600 mb-4">{t('onboarding.personnel.addedUsers')}</h4>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         {personnelData.map((person, index) => (
                                             <div key={index} className="bg-gray-50 rounded-xl p-5 border border-gray-200 hover:border-green-400/30 transition-all">
@@ -671,7 +917,7 @@ export default function SuperAdminOnboardingPage() {
                                                                     ? 'bg-green-100 text-green-500'
                                                                     : 'bg-blue-100 text-blue-500'
                                                             }`}>
-                                {person.role === 'manager' ? 'Manager' : 'Staff'}
+                                {person.role === 'manager' ? t('onboarding.personnel.roles.manager') : t('onboarding.personnel.roles.staff')}
                               </span>
                                                         </div>
                                                     </div>
@@ -692,7 +938,7 @@ export default function SuperAdminOnboardingPage() {
                             {showPersonForm ? (
                                 <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
                                     <div className="flex items-center justify-between mb-5">
-                                        <h4 className="text-base font-medium text-gray-900">Add New User</h4>
+                                        <h4 className="text-base font-medium text-gray-900">{t('onboarding.personnel.addNewUser')}</h4>
                                         <button
                                             onClick={() => {
                                                 setShowPersonForm(false)
@@ -708,6 +954,7 @@ export default function SuperAdminOnboardingPage() {
                                                 setEmailError('')
                                                 setPhoneError('')
                                                 setPasswordError('')
+                                                setPersonnelErrors({ first_name: '', last_name: '', email: '', password: '' })
                                             }}
                                             className="text-gray-500 hover:text-gray-700 transition p-1.5 hover:bg-white rounded-lg"
                                         >
@@ -718,57 +965,89 @@ export default function SuperAdminOnboardingPage() {
                                     <div className="space-y-4">
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-600 mb-2">First Name</label>
+                                                <label className="block text-sm font-medium text-gray-600 mb-2">{t('onboarding.personnel.form.firstName')}</label>
                                                 <input
                                                     type="text"
                                                     value={newPerson.first_name}
-                                                    onChange={(e) => setNewPerson({...newPerson, first_name: e.target.value})}
-                                                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                                                    placeholder="Enter first name"
+                                                    onChange={(e) => {
+                                                        setNewPerson({...newPerson, first_name: e.target.value})
+                                                        setPersonnelErrors({...personnelErrors, first_name: ''})
+                                                    }}
+                                                    className={`w-full px-4 py-3 bg-white border rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent ${
+                                                        personnelErrors.first_name
+                                                            ? 'border-red-500 focus:ring-red-500'
+                                                            : 'border-gray-200 focus:ring-green-500'
+                                                    }`}
+                                                    placeholder={t('onboarding.personnel.form.firstNamePlaceholder')}
                                                 />
+                                                {personnelErrors.first_name && (
+                                                    <div className="mt-1 flex items-center">
+                                                        <ExclamationTriangleIcon className="h-4 w-4 text-red-500 mr-1" />
+                                                        <p className="text-sm text-red-600">{personnelErrors.first_name}</p>
+                                                    </div>
+                                                )}
                                             </div>
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-600 mb-2">Last Name</label>
+                                                <label className="block text-sm font-medium text-gray-600 mb-2">{t('onboarding.personnel.form.lastName')}</label>
                                                 <input
                                                     type="text"
                                                     value={newPerson.last_name}
-                                                    onChange={(e) => setNewPerson({...newPerson, last_name: e.target.value})}
-                                                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                                                    placeholder="Enter last name"
+                                                    onChange={(e) => {
+                                                        setNewPerson({...newPerson, last_name: e.target.value})
+                                                        setPersonnelErrors({...personnelErrors, last_name: ''})
+                                                    }}
+                                                    className={`w-full px-4 py-3 bg-white border rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent ${
+                                                        personnelErrors.last_name
+                                                            ? 'border-red-500 focus:ring-red-500'
+                                                            : 'border-gray-200 focus:ring-green-500'
+                                                    }`}
+                                                    placeholder={t('onboarding.personnel.form.lastNamePlaceholder')}
                                                 />
+                                                {personnelErrors.last_name && (
+                                                    <div className="mt-1 flex items-center">
+                                                        <ExclamationTriangleIcon className="h-4 w-4 text-red-500 mr-1" />
+                                                        <p className="text-sm text-red-600">{personnelErrors.last_name}</p>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-600 mb-2">Email</label>
+                                            <label className="block text-sm font-medium text-gray-600 mb-2">{t('onboarding.personnel.form.email')}</label>
                                             <input
                                                 type="email"
                                                 value={newPerson.email}
                                                 onChange={(e) => {
                                                     setNewPerson({...newPerson, email: e.target.value})
                                                     setEmailError('')
+                                                    setPersonnelErrors({...personnelErrors, email: ''})
                                                 }}
                                                 className={`w-full px-4 py-3 bg-white border rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent ${
-                                                    emailError ? 'border-red-500 focus:ring-red-500' : 'border-gray-200 focus:ring-green-500'
+                                                    emailError || personnelErrors.email ? 'border-red-500 focus:ring-red-500' : 'border-gray-200 focus:ring-green-500'
                                                 }`}
-                                                placeholder="Enter email address"
+                                                placeholder={t('onboarding.personnel.form.emailPlaceholder')}
                                             />
-                                            {emailError && <p className="mt-1 text-sm text-red-600">{emailError}</p>}
+                                            {(emailError || personnelErrors.email) && (
+                                                <div className="mt-1 flex items-center">
+                                                    <ExclamationTriangleIcon className="h-4 w-4 text-red-500 mr-1" />
+                                                    <p className="text-sm text-red-600">{emailError || personnelErrors.email}</p>
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-600 mb-2">Phone (Optional)</label>
+                                            <label className="block text-sm font-medium text-gray-600 mb-2">{t('onboarding.personnel.form.phone')}</label>
                                             <input
                                                 type="tel"
                                                 value={newPerson.phone}
                                                 onChange={(e) => setNewPerson({...newPerson, phone: e.target.value})}
                                                 className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                                                placeholder="Enter phone number"
+                                                placeholder={t('onboarding.personnel.form.phonePlaceholder')}
                                             />
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-600 mb-2">Password</label>
+                                            <label className="block text-sm font-medium text-gray-600 mb-2">{t('onboarding.personnel.form.password')}</label>
                                             <div className="relative">
                                                 <input
                                                     type={showPassword ? "text" : "password"}
@@ -776,11 +1055,12 @@ export default function SuperAdminOnboardingPage() {
                                                     onChange={(e) => {
                                                         setNewPerson({...newPerson, password: e.target.value})
                                                         setPasswordError('')
+                                                        setPersonnelErrors({...personnelErrors, password: ''})
                                                     }}
                                                     className={`w-full px-4 py-3 bg-white border rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent pr-12 ${
-                                                        passwordError ? 'border-red-500 focus:ring-red-500' : 'border-gray-200 focus:ring-green-500'
+                                                        passwordError || personnelErrors.password ? 'border-red-500 focus:ring-red-500' : 'border-gray-200 focus:ring-green-500'
                                                     }`}
-                                                    placeholder="Enter password"
+                                                    placeholder={t('onboarding.personnel.form.passwordPlaceholder')}
                                                 />
                                                 <button
                                                     type="button"
@@ -790,18 +1070,23 @@ export default function SuperAdminOnboardingPage() {
                                                     {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
                                                 </button>
                                             </div>
-                                            {passwordError && <p className="mt-1 text-sm text-red-600">{passwordError}</p>}
+                                            {(passwordError || personnelErrors.password) && (
+                                                <div className="mt-1 flex items-center">
+                                                    <ExclamationTriangleIcon className="h-4 w-4 text-red-500 mr-1" />
+                                                    <p className="text-sm text-red-600">{passwordError || personnelErrors.password}</p>
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-600 mb-2">Confirm Password</label>
+                                            <label className="block text-sm font-medium text-gray-600 mb-2">{t('onboarding.personnel.form.confirmPassword')}</label>
                                             <div className="relative">
                                                 <input
                                                     type={showPasswordConfirm ? "text" : "password"}
                                                     value={newPerson.passwordConfirm}
                                                     onChange={(e) => setNewPerson({...newPerson, passwordConfirm: e.target.value})}
                                                     className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent pr-12"
-                                                    placeholder="Confirm password"
+                                                    placeholder={t('onboarding.personnel.form.confirmPasswordPlaceholder')}
                                                 />
                                                 <button
                                                     type="button"
@@ -814,7 +1099,7 @@ export default function SuperAdminOnboardingPage() {
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-600 mb-3">Role</label>
+                                            <label className="block text-sm font-medium text-gray-600 mb-3">{t('onboarding.personnel.form.role')}</label>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <button
                                                     type="button"
@@ -830,8 +1115,8 @@ export default function SuperAdminOnboardingPage() {
                                                     }`} />
                                                     <p className={`text-sm font-medium ${
                                                         newPerson.role === 'manager' ? 'text-gray-900' : 'text-gray-600'
-                                                    }`}>Manager</p>
-                                                    <p className="text-xs mt-0.5 text-gray-500">Full Access</p>
+                                                    }`}>{t('onboarding.personnel.roles.manager')}</p>
+                                                    <p className="text-xs mt-0.5 text-gray-500">{t('onboarding.personnel.roles.managerAccess')}</p>
                                                 </button>
                                                 <button
                                                     type="button"
@@ -847,8 +1132,8 @@ export default function SuperAdminOnboardingPage() {
                                                     }`} />
                                                     <p className={`text-sm font-medium ${
                                                         newPerson.role === 'staff' ? 'text-gray-900' : 'text-gray-600'
-                                                    }`}>Staff</p>
-                                                    <p className="text-xs mt-0.5 text-gray-500">Basic Access</p>
+                                                    }`}>{t('onboarding.personnel.roles.staff')}</p>
+                                                    <p className="text-xs mt-0.5 text-gray-500">{t('onboarding.personnel.roles.staffAccess')}</p>
                                                 </button>
                                             </div>
                                         </div>
@@ -858,7 +1143,7 @@ export default function SuperAdminOnboardingPage() {
                                             disabled={!newPerson.first_name || !newPerson.last_name || !newPerson.email || !newPerson.password || !newPerson.passwordConfirm}
                                             className="w-full px-4 py-2.5 bg-[#2BE89A] text-black font-medium rounded-lg hover:bg-[#2BE89A]/90 transition disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                                         >
-                                            Add User
+                                            {t('onboarding.personnel.addUser')}
                                         </button>
                                     </div>
                                 </div>
@@ -868,32 +1153,31 @@ export default function SuperAdminOnboardingPage() {
                                     className="w-full px-5 py-4 bg-white border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-[#2BE89A] hover:bg-gray-50 transition-all group"
                                 >
                                     <UserGroupIcon className="h-6 w-6 mx-auto mb-2 text-gray-400 group-hover:text-[#2BE89A] transition" />
-                                    <p className="text-sm font-medium group-hover:text-gray-900 transition">Add New User</p>
+                                    <p className="text-sm font-medium group-hover:text-gray-900 transition">{t('onboarding.personnel.addNewUser')}</p>
                                 </button>
                             )}
 
                             <div className="mt-6 bg-[#2BE89A]/5 rounded-lg p-3.5 border border-[#2BE89A]/20">
                                 <p className="text-xs text-gray-600">
-                                    <span className="text-[#2BE89A] font-medium">Tip:</span> Add at least one manager to complete this step
+                                    <span className="text-[#2BE89A] font-medium">{t('onboarding.common.tip')}</span> {t('onboarding.personnel.tip')}
                                 </p>
                             </div>
                         </div>
 
-                        {/* UPDATED BUTTONS - Next Step instead of Complete Step */}
                         <div className="flex justify-between items-center">
                             <button
                                 onClick={() => handleSkipStep(1)}
                                 disabled={saving}
                                 className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
                             >
-                                Skip Step
+                                {t('onboarding.common.skipStep')}
                             </button>
                             <button
                                 onClick={() => handleNextStep(1)}
                                 disabled={saving || personnelData.length === 0}
                                 className="px-8 py-3 bg-gradient-to-r from-[#2BE89A] to-[#4FFFB0] text-black font-semibold rounded-lg hover:opacity-90 transition disabled:opacity-50"
                             >
-                                {saving ? 'Saving...' : 'Next Step'}
+                                {saving ? t('onboarding.common.saving') : t('onboarding.common.nextStep')}
                             </button>
                         </div>
                     </div>
@@ -905,9 +1189,9 @@ export default function SuperAdminOnboardingPage() {
                         <div className="bg-white rounded-lg p-6 border border-gray-200">
                             <div className="flex items-center justify-between mb-6">
                                 <div>
-                                    <h3 className="text-xl font-semibold text-gray-900 mb-1">Stripe Configuration</h3>
+                                    <h3 className="text-xl font-semibold text-gray-900 mb-1">{t('onboarding.stripe.title')}</h3>
                                     <p className="text-sm text-gray-500">
-                                        Setup payment processing for {restaurant?.name}
+                                        {t('onboarding.stripe.subtitle', { restaurant: restaurant?.name })}
                                     </p>
                                 </div>
                                 <div className="p-3 bg-gray-50 rounded-lg">
@@ -920,32 +1204,32 @@ export default function SuperAdminOnboardingPage() {
                                     <div className="bg-[#2BE89A]/5 rounded-lg p-5 border border-[#2BE89A]/20">
                                         <div className="flex items-center mb-4">
                                             <CheckCircleIcon className="h-5 w-5 text-[#2BE89A] mr-3" />
-                                            <h4 className="text-base font-medium text-gray-900">Stripe Connected</h4>
+                                            <h4 className="text-base font-medium text-gray-900">{t('onboarding.stripe.connected')}</h4>
                                         </div>
                                         <p className="text-sm text-gray-600">
-                                            Stripe payment processing is configured and ready to accept split payments.
+                                            {t('onboarding.stripe.connectedDescription')}
                                         </p>
                                     </div>
                                 ) : (
                                     <>
                                         <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
-                                            <h4 className="text-base font-medium text-gray-900 mb-3">Connect with Stripe</h4>
+                                            <h4 className="text-base font-medium text-gray-900 mb-3">{t('onboarding.stripe.connectWith')}</h4>
                                             <p className="text-sm text-gray-600 mb-4">
-                                                Connect your Stripe account to enable payment processing for {restaurant?.name}.
+                                                {t('onboarding.stripe.connectDescription', { restaurant: restaurant?.name })}
                                             </p>
 
                                             <div className="grid grid-cols-3 gap-3 mb-4">
                                                 <div className="bg-white rounded-lg p-3 border border-gray-200">
                                                     <ShieldCheckIcon className="h-5 w-5 text-[#2BE89A] mx-auto mb-2" />
-                                                    <p className="text-xs text-gray-600 text-center">PCI Compliant</p>
+                                                    <p className="text-xs text-gray-600 text-center">{t('onboarding.stripe.features.pciCompliant')}</p>
                                                 </div>
                                                 <div className="bg-white rounded-lg p-3 border border-gray-200">
                                                     <ClockIcon className="h-5 w-5 text-[#2BE89A] mx-auto mb-2" />
-                                                    <p className="text-xs text-gray-600 text-center">Daily Payouts</p>
+                                                    <p className="text-xs text-gray-600 text-center">{t('onboarding.stripe.features.dailyPayouts')}</p>
                                                 </div>
                                                 <div className="bg-white rounded-lg p-3 border border-gray-200">
                                                     <SparklesIcon className="h-5 w-5 text-[#2BE89A] mx-auto mb-2" />
-                                                    <p className="text-xs text-gray-600 text-center">Real-time Insights</p>
+                                                    <p className="text-xs text-gray-600 text-center">{t('onboarding.stripe.features.realTimeInsights')}</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -958,11 +1242,11 @@ export default function SuperAdminOnboardingPage() {
                                             {stripeConnecting ? (
                                                 <>
                                                     <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
-                                                    Connecting...
+                                                    {t('onboarding.stripe.connecting')}
                                                 </>
                                             ) : (
                                                 <>
-                                                    <span>Connect with Stripe</span>
+                                                    <span>{t('onboarding.stripe.connectWith')}</span>
                                                     <ArrowRightIcon className="h-4 w-4 ml-2" />
                                                 </>
                                             )}
@@ -970,7 +1254,7 @@ export default function SuperAdminOnboardingPage() {
 
                                         <div className="bg-[#2BE89A]/5 rounded-lg p-3.5 border border-[#2BE89A]/20">
                                             <p className="text-xs text-gray-600">
-                                                <span className="text-[#2BE89A] font-medium">Secure:</span> Your financial data is handled by Stripe with bank-level security.
+                                                <span className="text-[#2BE89A] font-medium">{t('onboarding.common.secure')}</span> {t('onboarding.stripe.securityNote')}
                                             </p>
                                         </div>
                                     </>
@@ -978,21 +1262,20 @@ export default function SuperAdminOnboardingPage() {
                             </div>
                         </div>
 
-                        {/* UPDATED BUTTONS - Next Step instead of Continue */}
                         <div className="flex justify-between items-center">
                             <button
                                 onClick={() => handleSkipStep(2)}
                                 disabled={saving}
                                 className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
                             >
-                                Skip Step
+                                {t('onboarding.common.skipStep')}
                             </button>
                             {progress?.stripe_connected && (
                                 <button
                                     onClick={() => setCurrentStep(3)}
                                     className="px-8 py-3 bg-gradient-to-r from-[#2BE89A] to-[#4FFFB0] text-black font-semibold rounded-lg hover:opacity-90 transition"
                                 >
-                                    Next Step
+                                    {t('onboarding.common.nextStep')}
                                 </button>
                             )}
                         </div>
@@ -1005,9 +1288,9 @@ export default function SuperAdminOnboardingPage() {
                         <div className="bg-white rounded-lg p-6 border border-gray-200">
                             <div className="flex items-center justify-between mb-6">
                                 <div>
-                                    <h3 className="text-xl font-semibold text-gray-900 mb-1">POS System Configuration</h3>
+                                    <h3 className="text-xl font-semibold text-gray-900 mb-1">{t('onboarding.pos.title')}</h3>
                                     <p className="text-sm text-gray-500">
-                                        Connect point of sale system for {restaurant?.name}
+                                        {t('onboarding.pos.subtitle', { restaurant: restaurant?.name })}
                                     </p>
                                 </div>
                                 <div className="p-3 bg-gray-50 rounded-lg">
@@ -1019,79 +1302,127 @@ export default function SuperAdminOnboardingPage() {
                                 <div className="bg-gray-50 rounded-lg p-6 border border-gray-200 space-y-5">
                                     <div>
                                         <label className="block text-xs font-medium text-gray-700 mb-2 uppercase tracking-wider">
-                                            POS System <span className="text-red-500">*</span>
+                                            {t('onboarding.pos.form.posSystem')} <span className="text-red-500">*</span>
                                         </label>
                                         <select
                                             value={posData.pos_type}
-                                            onChange={(e) => setPosData({...posData, pos_type: e.target.value})}
-                                            className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-md text-gray-900 text-sm focus:outline-none focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A] transition-colors"
-                                            required
+                                            onChange={(e) => {
+                                                setPosData({...posData, pos_type: e.target.value})
+                                                setPosErrors({...posErrors, pos_type: ''})
+                                            }}
+                                            className={`w-full px-3 py-2.5 bg-white border rounded-md text-gray-900 text-sm focus:outline-none transition-colors ${
+                                                posErrors.pos_type
+                                                    ? 'border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500'
+                                                    : 'border-gray-200 focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A]'
+                                            }`}
                                         >
-                                            <option value="">Select POS System</option>
+                                            <option value="">{t('onboarding.pos.form.selectPosSystem')}</option>
                                             <option value="untill">Untill</option>
                                             <option value="lightspeed">Lightspeed</option>
                                             <option value="mpluskassa">M+ Kassa</option>
-                                            <option value="other">Other</option>
+                                            <option value="other">{t('onboarding.pos.form.other')}</option>
                                         </select>
+                                        {posErrors.pos_type && (
+                                            <div className="mt-1 flex items-center">
+                                                <ExclamationTriangleIcon className="h-4 w-4 text-red-500 mr-1" />
+                                                <p className="text-sm text-red-600">{posErrors.pos_type}</p>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-xs font-medium text-gray-700 mb-2 uppercase tracking-wider">
-                                                Username <span className="text-red-500">*</span>
+                                                {t('onboarding.pos.form.username')} <span className="text-red-500">*</span>
                                             </label>
                                             <input
                                                 type="text"
                                                 value={posData.username}
-                                                onChange={(e) => setPosData({...posData, username: e.target.value})}
-                                                className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-md text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A] transition-colors"
-                                                placeholder="Enter username"
-                                                required
+                                                onChange={(e) => {
+                                                    setPosData({...posData, username: e.target.value})
+                                                    setPosErrors({...posErrors, username: ''})
+                                                }}
+                                                className={`w-full px-3 py-2.5 bg-white border rounded-md text-gray-900 placeholder-gray-400 text-sm focus:outline-none transition-colors ${
+                                                    posErrors.username
+                                                        ? 'border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500'
+                                                        : 'border-gray-200 focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A]'
+                                                }`}
+                                                placeholder={t('onboarding.pos.form.usernamePlaceholder')}
                                             />
+                                            {posErrors.username && (
+                                                <div className="mt-1 flex items-center">
+                                                    <ExclamationTriangleIcon className="h-4 w-4 text-red-500 mr-1" />
+                                                    <p className="text-sm text-red-600">{posErrors.username}</p>
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div>
                                             <label className="block text-xs font-medium text-gray-700 mb-2 uppercase tracking-wider">
-                                                Password <span className="text-red-500">*</span>
+                                                {t('onboarding.pos.form.password')} <span className="text-red-500">*</span>
                                             </label>
                                             <input
                                                 type="password"
                                                 value={posData.password}
-                                                onChange={(e) => setPosData({...posData, password: e.target.value})}
-                                                className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-md text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A] transition-colors"
-                                                placeholder="Enter password"
-                                                required
+                                                onChange={(e) => {
+                                                    setPosData({...posData, password: e.target.value})
+                                                    setPosErrors({...posErrors, password: ''})
+                                                }}
+                                                className={`w-full px-3 py-2.5 bg-white border rounded-md text-gray-900 placeholder-gray-400 text-sm focus:outline-none transition-colors ${
+                                                    posErrors.password
+                                                        ? 'border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500'
+                                                        : 'border-gray-200 focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A]'
+                                                }`}
+                                                placeholder={t('onboarding.pos.form.passwordPlaceholder')}
                                             />
+                                            {posErrors.password && (
+                                                <div className="mt-1 flex items-center">
+                                                    <ExclamationTriangleIcon className="h-4 w-4 text-red-500 mr-1" />
+                                                    <p className="text-sm text-red-600">{posErrors.password}</p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
                                     <div>
                                         <label className="block text-xs font-medium text-gray-700 mb-2 uppercase tracking-wider">
-                                            API URL <span className="text-red-500">*</span>
+                                            {t('onboarding.pos.form.apiUrl')} <span className="text-red-500">*</span>
                                         </label>
                                         <input
                                             type="text"
                                             placeholder="https://api.example.com"
                                             value={posData.base_url}
-                                            onChange={(e) => setPosData({...posData, base_url: e.target.value})}
-                                            className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-md text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A] transition-colors"
-                                            required
+                                            onChange={(e) => {
+                                                setPosData({...posData, base_url: e.target.value})
+                                                setPosErrors({...posErrors, base_url: ''})
+                                            }}
+                                            className={`w-full px-3 py-2.5 bg-white border rounded-md text-gray-900 placeholder-gray-400 text-sm focus:outline-none transition-colors ${
+                                                posErrors.base_url
+                                                    ? 'border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500'
+                                                    : 'border-gray-200 focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A]'
+                                            }`}
                                         />
+                                        {posErrors.base_url && (
+                                            <div className="mt-1 flex items-center">
+                                                <ExclamationTriangleIcon className="h-4 w-4 text-red-500 mr-1" />
+                                                <p className="text-sm text-red-600">{posErrors.base_url}</p>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div>
                                         <label className="block text-xs font-medium text-gray-700 mb-2 uppercase tracking-wider">
-                                            Environment
+                                            {t('onboarding.pos.form.environment')}
                                         </label>
                                         <select
                                             value={posData.environment}
                                             onChange={(e) => setPosData({...posData, environment: e.target.value as any})}
                                             className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-md text-gray-900 text-sm focus:outline-none focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A] transition-colors"
                                         >
-                                            <option value="production">Production</option>
-                                            <option value="staging">Staging</option>
-                                            <option value="development">Development</option>
-                                            <option value="test">Test</option>
+                                            <option value="production">{t('onboarding.pos.environments.production')}</option>
+                                            <option value="staging">{t('onboarding.pos.environments.staging')}</option>
+                                            <option value="development">{t('onboarding.pos.environments.development')}</option>
+                                            <option value="test">{t('onboarding.pos.environments.test')}</option>
                                         </select>
                                     </div>
 
@@ -1099,9 +1430,9 @@ export default function SuperAdminOnboardingPage() {
                                         <div className="flex items-center justify-between">
                                             <div className="flex-1">
                                                 <label htmlFor="is-active" className="text-sm font-medium text-gray-900 cursor-pointer">
-                                                    Activate Integration
+                                                    {t('onboarding.pos.form.activateIntegration')}
                                                 </label>
-                                                <p className="text-xs text-gray-500 mt-1">Enable POS integration for {restaurant?.name}</p>
+                                                <p className="text-xs text-gray-500 mt-1">{t('onboarding.pos.form.activateDescription', { restaurant: restaurant?.name })}</p>
                                             </div>
                                             <button
                                                 type="button"
@@ -1114,7 +1445,7 @@ export default function SuperAdminOnboardingPage() {
                           ${posData.is_active ? 'bg-[#2BE89A]' : 'bg-gray-200'}
                         `}
                                             >
-                                                <span className="sr-only">Activate POS integration</span>
+                                                <span className="sr-only">{t('onboarding.pos.form.activateIntegration')}</span>
                                                 <span
                                                     className={`
                             pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 
@@ -1129,21 +1460,20 @@ export default function SuperAdminOnboardingPage() {
                             </div>
                         </div>
 
-                        {/* UPDATED BUTTONS - Next Step instead of Complete Step */}
                         <div className="flex justify-between items-center">
                             <button
                                 onClick={() => handleSkipStep(3)}
                                 disabled={saving}
                                 className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
                             >
-                                Skip Step
+                                {t('onboarding.common.skipStep')}
                             </button>
                             <button
                                 onClick={() => handleNextStep(3)}
                                 disabled={saving}
                                 className="px-8 py-3 bg-gradient-to-r from-[#2BE89A] to-[#4FFFB0] text-black font-semibold rounded-lg hover:opacity-90 transition disabled:opacity-50"
                             >
-                                {saving ? 'Saving...' : 'Next Step'}
+                                {saving ? t('onboarding.common.saving') : t('onboarding.common.nextStep')}
                             </button>
                         </div>
                     </div>
@@ -1155,9 +1485,9 @@ export default function SuperAdminOnboardingPage() {
                         <div className="bg-white rounded-lg p-6 border border-gray-200">
                             <div className="flex items-center justify-between mb-6">
                                 <div>
-                                    <h3 className="text-xl font-semibold text-gray-900 mb-1">QR Stands Setup</h3>
+                                    <h3 className="text-xl font-semibold text-gray-900 mb-1">{t('onboarding.qr.title')}</h3>
                                     <p className="text-sm text-gray-500">
-                                        Configure table QR code stands for {restaurant?.name}
+                                        {t('onboarding.qr.subtitle', { restaurant: restaurant?.name })}
                                     </p>
                                 </div>
                                 <div className="p-3 bg-gray-50 rounded-lg">
@@ -1169,11 +1499,11 @@ export default function SuperAdminOnboardingPage() {
                                 {/* Domain Configuration */}
                                 <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
                                     <label className="block text-xs font-medium text-gray-700 mb-4 uppercase tracking-wider">
-                                        Restaurant Domain
+                                        {t('onboarding.qr.domain.title')}
                                     </label>
                                     <div className="space-y-3">
                                         <div>
-                                            <label className="block text-sm text-gray-600 mb-2">Domain Name (for QR codes)</label>
+                                            <label className="block text-sm text-gray-600 mb-2">{t('onboarding.qr.domain.name')}</label>
                                             <div className="flex space-x-3">
                                                 <div className="flex-1">
                                                     <input
@@ -1184,10 +1514,21 @@ export default function SuperAdminOnboardingPage() {
                                                             setQrStandData({...qrStandData, domain})
                                                             setDomainStatus(null) // Reset status when domain changes
                                                             setDomainMessage('')
+                                                            setQrErrors({...qrErrors, domain: ''})
                                                         }}
-                                                        placeholder="restaurant-name"
-                                                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A] transition-colors"
+                                                        placeholder={t('onboarding.qr.domain.placeholder')}
+                                                        className={`w-full px-3 py-2 bg-white border rounded-md text-gray-900 text-sm placeholder-gray-400 focus:outline-none transition-colors ${
+                                                            qrErrors.domain
+                                                                ? 'border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500'
+                                                                : 'border-gray-200 focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A]'
+                                                        }`}
                                                     />
+                                                    {qrErrors.domain && (
+                                                        <div className="mt-1 flex items-center">
+                                                            <ExclamationTriangleIcon className="h-4 w-4 text-red-500 mr-1" />
+                                                            <p className="text-sm text-red-600">{qrErrors.domain}</p>
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 <button
                                                     type="button"
@@ -1198,10 +1539,10 @@ export default function SuperAdminOnboardingPage() {
                                                     {domainChecking ? (
                                                         <>
                                                             <ArrowPathIcon className="h-4 w-4 animate-spin inline mr-1" />
-                                                            Checking...
+                                                            {t('onboarding.qr.domain.checking')}
                                                         </>
                                                     ) : (
-                                                        'Check Domain'
+                                                        t('onboarding.qr.domain.checkDomain')
                                                     )}
                                                 </button>
                                             </div>
@@ -1229,7 +1570,7 @@ export default function SuperAdminOnboardingPage() {
                                             )}
 
                                             <p className="text-xs text-gray-500 mt-1">
-                                                Only lowercase letters, numbers, and hyphens allowed. Final URL will be: {qrStandData.domain || 'your-domain'}.splitty.nl
+                                                {t('onboarding.qr.domain.note', { domain: qrStandData.domain || t('onboarding.qr.domain.yourDomain') })}
                                             </p>
                                         </div>
                                     </div>
@@ -1238,14 +1579,14 @@ export default function SuperAdminOnboardingPage() {
                                 {/* Available Designs */}
                                 <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
                                     <label className="block text-xs font-medium text-gray-700 mb-4 uppercase tracking-wider">
-                                        Available Designs
+                                        {t('onboarding.qr.designs.title')}
                                     </label>
                                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                                         {[
-                                            { id: 1, name: 'Design 1', image: '/images/qr-design-1.png' },
-                                            { id: 2, name: 'Design 2', image: '/images/qr-design-2.png' },
-                                            { id: 3, name: 'Design 3', image: '/images/qr-design-3.png' },
-                                            { id: 4, name: 'Design 4', image: '/images/qr-design-4.png' }
+                                            { id: 1, name: t('onboarding.qr.designs.design1'), image: '/images/qr-design-1.png' },
+                                            { id: 2, name: t('onboarding.qr.designs.design2'), image: '/images/qr-design-2.png' },
+                                            { id: 3, name: t('onboarding.qr.designs.design3'), image: '/images/qr-design-3.png' },
+                                            { id: 4, name: t('onboarding.qr.designs.design4'), image: '/images/qr-design-4.png' }
                                         ].map((design) => (
                                             <div
                                                 key={design.id}
@@ -1263,7 +1604,7 @@ export default function SuperAdminOnboardingPage() {
                                         ))}
                                     </div>
                                     <p className="text-xs text-gray-500 mt-3 text-center">
-                                        Select different designs for each section below
+                                        {t('onboarding.qr.designs.selectNote')}
                                     </p>
                                 </div>
 
@@ -1271,7 +1612,7 @@ export default function SuperAdminOnboardingPage() {
                                 <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
                                     <div className="flex items-center justify-between mb-4">
                                         <label className="block text-xs font-medium text-gray-700 uppercase tracking-wider">
-                                            Table Sections
+                                            {t('onboarding.qr.sections.title')}
                                         </label>
                                         <button
                                             type="button"
@@ -1279,7 +1620,7 @@ export default function SuperAdminOnboardingPage() {
                                             className="inline-flex items-center px-3 py-1.5 bg-[#2BE89A] text-black text-xs font-medium rounded-md hover:bg-[#2BE89A]/90 transition"
                                         >
                                             <span className="text-lg mr-1">+</span>
-                                            Add Section
+                                            {t('onboarding.qr.sections.addSection')}
                                         </button>
                                     </div>
 
@@ -1288,13 +1629,13 @@ export default function SuperAdminOnboardingPage() {
                                             <div key={section.id} className="bg-white rounded-lg p-4 border border-gray-200">
                                                 <div className="flex items-center justify-between mb-3">
                                                     <div className="flex-1 mr-4">
-                                                        <label className="block text-xs text-gray-600 mb-1.5">Section Name</label>
+                                                        <label className="block text-xs text-gray-600 mb-1.5">{t('onboarding.qr.sections.sectionName')}</label>
                                                         <input
                                                             type="text"
                                                             value={section.name}
                                                             onChange={(e) => updateTableSection(section.id, 'name', e.target.value)}
                                                             className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-gray-900 text-sm focus:outline-none focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A] transition-colors"
-                                                            placeholder="Section name"
+                                                            placeholder={t('onboarding.qr.sections.sectionNamePlaceholder')}
                                                         />
                                                     </div>
 
@@ -1311,31 +1652,33 @@ export default function SuperAdminOnboardingPage() {
 
                                                 <div className="grid grid-cols-2 gap-4">
                                                     <div>
-                                                        <label className="block text-xs text-gray-600 mb-1.5">Table Numbers (comma separated)</label>
+                                                        <label className="block text-xs text-gray-600 mb-1.5">{t('onboarding.qr.sections.tableNumbers')}</label>
                                                         <input
                                                             type="text"
                                                             value={section.table_numbers}
                                                             onChange={(e) => updateTableSection(section.id, 'table_numbers', e.target.value)}
-                                                            placeholder="1, 2, 3, 10, 15"
+                                                            placeholder={t('onboarding.qr.sections.tableNumbersPlaceholder')}
                                                             className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A] transition-colors"
                                                         />
                                                         <p className="text-xs text-gray-500 mt-1">
-                                                            Tables: {section.table_numbers ?
-                                                            section.table_numbers.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n) && n > 0).length : 0}
+                                                            {t('onboarding.qr.sections.tablesCount', {
+                                                                count: section.table_numbers ?
+                                                                    section.table_numbers.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n) && n > 0).length : 0
+                                                            })}
                                                         </p>
                                                     </div>
 
                                                     <div>
-                                                        <label className="block text-xs text-gray-600 mb-1.5">Design</label>
+                                                        <label className="block text-xs text-gray-600 mb-1.5">{t('onboarding.qr.sections.design')}</label>
                                                         <select
                                                             value={section.selected_design}
                                                             onChange={(e) => updateTableSection(section.id, 'selected_design', parseInt(e.target.value))}
                                                             className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-gray-900 text-sm focus:outline-none focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A] transition-colors"
                                                         >
-                                                            <option value={1}>Design 1</option>
-                                                            <option value={2}>Design 2</option>
-                                                            <option value={3}>Design 3</option>
-                                                            <option value={4}>Design 4</option>
+                                                            <option value={1}>{t('onboarding.qr.designs.design1')}</option>
+                                                            <option value={2}>{t('onboarding.qr.designs.design2')}</option>
+                                                            <option value={3}>{t('onboarding.qr.designs.design3')}</option>
+                                                            <option value={4}>{t('onboarding.qr.designs.design4')}</option>
                                                         </select>
                                                     </div>
                                                 </div>
@@ -1346,7 +1689,7 @@ export default function SuperAdminOnboardingPage() {
                                     {/* Total Calculator */}
                                     <div className="bg-white rounded-md p-3 border border-gray-200 mt-4">
                                         <div className="flex items-center justify-between">
-                                            <span className="text-sm font-medium text-gray-700">Total Tables</span>
+                                            <span className="text-sm font-medium text-gray-700">{t('onboarding.qr.sections.totalTables')}</span>
                                             <span className="text-lg font-bold text-[#2BE89A]">
                                     {tableSections.reduce((total, section) => {
                                         const count = section.table_numbers ?
@@ -1356,17 +1699,24 @@ export default function SuperAdminOnboardingPage() {
                                 </span>
                                         </div>
                                     </div>
+
+                                    {qrErrors.tables && (
+                                        <div className="mt-2 flex items-center">
+                                            <ExclamationTriangleIcon className="h-4 w-4 text-red-500 mr-1" />
+                                            <p className="text-sm text-red-600">{qrErrors.tables}</p>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Notes Field */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-600 mb-2">
-                                        Notes (Optional)
+                                        {t('onboarding.qr.notes.title')}
                                     </label>
                                     <textarea
                                         value={qrStandData.notes}
                                         onChange={(e) => setQrStandData({...qrStandData, notes: e.target.value})}
-                                        placeholder="Additional notes for QR stand setup..."
+                                        placeholder={t('onboarding.qr.notes.placeholder')}
                                         className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A] transition-colors resize-none"
                                         rows={4}
                                     />
@@ -1374,21 +1724,20 @@ export default function SuperAdminOnboardingPage() {
                             </div>
                         </div>
 
-                        {/* UPDATED BUTTONS - Next Step instead of Complete Step */}
                         <div className="flex justify-between items-center">
                             <button
                                 onClick={() => handleSkipStep(4)}
                                 disabled={saving}
                                 className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
                             >
-                                Skip Step
+                                {t('onboarding.common.skipStep')}
                             </button>
                             <button
                                 onClick={() => handleNextStep(4)}
                                 disabled={saving || !qrStandData.domain || domainStatus !== 'available'}
                                 className="px-8 py-3 bg-gradient-to-r from-[#2BE89A] to-[#4FFFB0] text-black font-semibold rounded-lg hover:opacity-90 transition disabled:opacity-50"
                             >
-                                {saving ? 'Saving...' : 'Next Step'}
+                                {saving ? t('onboarding.common.saving') : t('onboarding.common.nextStep')}
                             </button>
                         </div>
                     </div>
@@ -1400,9 +1749,9 @@ export default function SuperAdminOnboardingPage() {
                         <div className="bg-white rounded-lg p-6 border border-gray-200">
                             <div className="flex items-center justify-between mb-6">
                                 <div>
-                                    <h3 className="text-xl font-semibold text-gray-900 mb-1">Google Reviews Setup</h3>
+                                    <h3 className="text-xl font-semibold text-gray-900 mb-1">{t('onboarding.google.title')}</h3>
                                     <p className="text-sm text-gray-500">
-                                        Configure Google Reviews link for {restaurant?.name}
+                                        {t('onboarding.google.subtitle', { restaurant: restaurant?.name })}
                                     </p>
                                 </div>
                                 <div className="p-3 bg-gray-50 rounded-lg">
@@ -1413,20 +1762,20 @@ export default function SuperAdminOnboardingPage() {
                             <div className="space-y-6">
                                 {/* Instructions */}
                                 <div className="bg-[#2BE89A]/5 rounded-lg p-5 border border-[#2BE89A]/20">
-                                    <h4 className="text-base font-medium text-gray-900 mb-3">Set up Google Review link for {restaurant?.name}</h4>
+                                    <h4 className="text-base font-medium text-gray-900 mb-3">{t('onboarding.google.setup', { restaurant: restaurant?.name })}</h4>
 
                                     <div className="space-y-4 text-sm">
                                         <div className="flex items-start">
                                             <div className="w-6 h-6 rounded-full bg-[#2BE89A] text-black flex items-center justify-center text-xs font-bold mr-3 mt-0.5">1</div>
                                             <div>
-                                                <p className="font-medium text-gray-900 mb-1">Search for {restaurant?.name} on Google</p>
+                                                <p className="font-medium text-gray-900 mb-1">{t('onboarding.google.step1', { restaurant: restaurant?.name })}</p>
                                                 <a
                                                     href="https://developers.google.com/maps/documentation/places/web-service/place-id"
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="text-[#2BE89A] hover:text-[#2BE89A]/80 underline"
                                                 >
-                                                    Open Google Place ID Finder
+                                                    {t('onboarding.google.placeIdFinder')}
                                                 </a>
                                             </div>
                                         </div>
@@ -1434,24 +1783,24 @@ export default function SuperAdminOnboardingPage() {
                                         <div className="flex items-start">
                                             <div className="w-6 h-6 rounded-full bg-[#2BE89A] text-black flex items-center justify-center text-xs font-bold mr-3 mt-0.5">2</div>
                                             <div>
-                                                <p className="font-medium text-gray-900 mb-1">Search under "Find the ID of a particular place"</p>
-                                                <p className="text-gray-600">Type "{restaurant?.name}" and select the correct result</p>
+                                                <p className="font-medium text-gray-900 mb-1">{t('onboarding.google.step2')}</p>
+                                                <p className="text-gray-600">{t('onboarding.google.step2Description', { restaurant: restaurant?.name })}</p>
                                             </div>
                                         </div>
 
                                         <div className="flex items-start">
                                             <div className="w-6 h-6 rounded-full bg-[#2BE89A] text-black flex items-center justify-center text-xs font-bold mr-3 mt-0.5">3</div>
                                             <div>
-                                                <p className="font-medium text-gray-900 mb-1">Copy the Place ID</p>
-                                                <p className="text-gray-600">This appears below the map (e.g.: ChIJN1t_tDeuEmsRU...)</p>
+                                                <p className="font-medium text-gray-900 mb-1">{t('onboarding.google.step3')}</p>
+                                                <p className="text-gray-600">{t('onboarding.google.step3Description')}</p>
                                             </div>
                                         </div>
 
                                         <div className="flex items-start">
                                             <div className="w-6 h-6 rounded-full bg-[#2BE89A] text-black flex items-center justify-center text-xs font-bold mr-3 mt-0.5">4</div>
                                             <div>
-                                                <p className="font-medium text-gray-900 mb-1">Paste the Place ID below</p>
-                                                <p className="text-gray-600">Replace only "PLACE_ID" with the copied ID from {restaurant?.name}</p>
+                                                <p className="font-medium text-gray-900 mb-1">{t('onboarding.google.step4')}</p>
+                                                <p className="text-gray-600">{t('onboarding.google.step4Description', { restaurant: restaurant?.name })}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -1460,7 +1809,7 @@ export default function SuperAdminOnboardingPage() {
                                 {/* Place ID Input */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Google Place ID
+                                        {t('onboarding.google.placeId')}
                                     </label>
                                     <input
                                         type="text"
@@ -1471,23 +1820,34 @@ export default function SuperAdminOnboardingPage() {
                                                 place_id: placeId,
                                                 review_link: placeId ? `https://search.google.com/local/writereview?placeid=${placeId}` : ''
                                             })
+                                            setGoogleErrors({...googleErrors, place_id: ''})
                                         }}
                                         placeholder="ChIJN1t_tDeuEmsRUsoyG83frY4"
-                                        className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:border-[#2BE89A] focus:ring-2 focus:ring-[#2BE89A]/20"
+                                        className={`w-full px-4 py-3 bg-white border rounded-lg text-gray-900 placeholder-gray-400 text-sm focus:outline-none transition-colors ${
+                                            googleErrors.place_id
+                                                ? 'border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20'
+                                                : 'border-gray-200 focus:border-[#2BE89A] focus:ring-2 focus:ring-[#2BE89A]/20'
+                                        }`}
                                     />
+                                    {googleErrors.place_id && (
+                                        <div className="mt-1 flex items-center">
+                                            <ExclamationTriangleIcon className="h-4 w-4 text-red-500 mr-1" />
+                                            <p className="text-sm text-red-600">{googleErrors.place_id}</p>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Generated Link */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Google Review Link
+                                        {t('onboarding.google.reviewLink')}
                                     </label>
                                     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                                         <p className="text-sm text-gray-700 font-mono break-all">
                                             https://search.google.com/local/writereview?placeid={googleReviewData.place_id || 'PLACE_ID'}
                                         </p>
                                     </div>
-                                    <p className="text-xs text-gray-500 mt-2">The restaurant can always change this later</p>
+                                    <p className="text-xs text-gray-500 mt-2">{t('onboarding.google.changeLater')}</p>
                                 </div>
 
                                 {googleReviewData.place_id && (
@@ -1495,7 +1855,7 @@ export default function SuperAdminOnboardingPage() {
                                         <div className="flex items-center">
                                             <CheckCircleIcon className="h-5 w-5 text-green-500 mr-2" />
                                             <p className="text-sm text-green-700">
-                                                Customers will be directed to this link to leave reviews after their visit.
+                                                {t('onboarding.google.customerRedirection')}
                                             </p>
                                         </div>
                                     </div>
@@ -1503,21 +1863,20 @@ export default function SuperAdminOnboardingPage() {
                             </div>
                         </div>
 
-                        {/* UPDATED BUTTONS - Next Step instead of Complete Step */}
                         <div className="flex justify-between items-center">
                             <button
                                 onClick={() => handleSkipStep(5)}
                                 disabled={saving}
                                 className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
                             >
-                                Skip Step
+                                {t('onboarding.common.skipStep')}
                             </button>
                             <button
                                 onClick={() => handleNextStep(5)}
                                 disabled={saving || !googleReviewData.place_id}
                                 className="px-8 py-3 bg-gradient-to-r from-[#2BE89A] to-[#4FFFB0] text-black font-semibold rounded-lg hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                {saving ? 'Saving...' : 'Next Step'}
+                                {saving ? t('onboarding.common.saving') : t('onboarding.common.nextStep')}
                             </button>
                         </div>
                     </div>
@@ -1529,9 +1888,9 @@ export default function SuperAdminOnboardingPage() {
                         <div className="bg-white rounded-lg p-6 border border-gray-200">
                             <div className="flex items-center justify-between mb-6">
                                 <div>
-                                    <h3 className="text-xl font-semibold text-gray-900 mb-1">Telegram Notifications</h3>
+                                    <h3 className="text-xl font-semibold text-gray-900 mb-1">{t('onboarding.telegram.title')}</h3>
                                     <p className="text-sm text-gray-500">
-                                        Setup notification system for {restaurant?.name}
+                                        {t('onboarding.telegram.subtitle', { restaurant: restaurant?.name })}
                                     </p>
                                 </div>
                                 <div className="p-3 bg-gray-50 rounded-lg">
@@ -1542,21 +1901,34 @@ export default function SuperAdminOnboardingPage() {
                             <div className="space-y-6">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-600 mb-2">
-                                        Restaurant Name
+                                        {t('onboarding.telegram.restaurantName')}
                                     </label>
                                     <input
                                         type="text"
                                         value={telegramData.restaurant_name}
-                                        onChange={(e) => setTelegramData({...telegramData, restaurant_name: e.target.value})}
+                                        onChange={(e) => {
+                                            setTelegramData({...telegramData, restaurant_name: e.target.value})
+                                            setTelegramErrors({...telegramErrors, restaurant_name: ''})
+                                        }}
                                         placeholder={restaurant?.name}
-                                        className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                        className={`w-full px-4 py-3 bg-white border rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none transition-colors ${
+                                            telegramErrors.restaurant_name
+                                                ? 'border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20'
+                                                : 'border-gray-200 focus:ring-2 focus:ring-green-500 focus:border-transparent'
+                                        }`}
                                     />
+                                    {telegramErrors.restaurant_name && (
+                                        <div className="mt-1 flex items-center">
+                                            <ExclamationTriangleIcon className="h-4 w-4 text-red-500 mr-1" />
+                                            <p className="text-sm text-red-600">{telegramErrors.restaurant_name}</p>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {telegramGroupLink && (
                                     <div className="bg-[#2BE89A]/5 rounded-lg p-4 border border-[#2BE89A]/20">
                                         <div className="flex items-center justify-between mb-2">
-                                            <p className="text-sm font-medium text-gray-900">Telegram Group Created</p>
+                                            <p className="text-sm font-medium text-gray-900">{t('onboarding.telegram.groupCreated')}</p>
                                             <button
                                                 onClick={() => window.open(telegramGroupLink, '_blank')}
                                                 className="text-[#2BE89A] hover:text-[#2BE89A]/80 transition"
@@ -1571,19 +1943,19 @@ export default function SuperAdminOnboardingPage() {
                                 )}
 
                                 <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
-                                    <h4 className="text-sm font-medium text-gray-700 mb-3">What you'll get:</h4>
+                                    <h4 className="text-sm font-medium text-gray-700 mb-3">{t('onboarding.telegram.features.title')}</h4>
                                     <ul className="space-y-2 text-xs text-gray-600">
                                         <li className="flex items-center">
                                             <CheckCircleIcon className="h-4 w-4 text-[#2BE89A] mr-2" />
-                                            New order notifications
+                                            {t('onboarding.telegram.features.orderNotifications')}
                                         </li>
                                         <li className="flex items-center">
                                             <CheckCircleIcon className="h-4 w-4 text-[#2BE89A] mr-2" />
-                                            Payment confirmations
+                                            {t('onboarding.telegram.features.paymentConfirmations')}
                                         </li>
                                         <li className="flex items-center">
                                             <CheckCircleIcon className="h-4 w-4 text-[#2BE89A] mr-2" />
-                                            Daily summaries
+                                            {t('onboarding.telegram.features.dailySummaries')}
                                         </li>
                                     </ul>
                                 </div>
@@ -1591,20 +1963,19 @@ export default function SuperAdminOnboardingPage() {
                                 <div className="bg-[#2BE89A]/5 rounded-lg p-4 border border-[#2BE89A]/20">
                                     <p className="text-sm text-gray-700">
                                         <CheckCircleIcon className="h-5 w-5 text-[#2BE89A] inline mr-2" />
-                                        Completing this step will finish the onboarding process for {restaurant?.name}.
+                                        {t('onboarding.telegram.completionNote', { restaurant: restaurant?.name })}
                                     </p>
                                 </div>
                             </div>
                         </div>
 
-                        {/* FINAL STEP BUTTONS - Submit & Complete Onboarding */}
                         <div className="flex justify-between items-center">
                             <button
                                 onClick={() => handleSkipStep(6)}
                                 disabled={saving}
                                 className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
                             >
-                                Skip & Finish
+                                {t('onboarding.telegram.skipAndFinish')}
                             </button>
                             <button
                                 onClick={handleCompleteOnboarding}
@@ -1614,12 +1985,12 @@ export default function SuperAdminOnboardingPage() {
                                 {telegramCreating ? (
                                     <>
                                         <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
-                                        Completing Onboarding...
+                                        {t('onboarding.telegram.completing')}
                                     </>
                                 ) : (
                                     <>
                                         <ChatBubbleLeftRightIcon className="h-4 w-4 mr-2" />
-                                        Submit & Complete Onboarding
+                                        {t('onboarding.telegram.submitAndComplete')}
                                     </>
                                 )}
                             </button>
@@ -1635,7 +2006,7 @@ export default function SuperAdminOnboardingPage() {
     if (loading) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="text-gray-900">Loading restaurant data...</div>
+                <div className="text-gray-900">{t('onboarding.loading.restaurant')}</div>
             </div>
         )
     }
@@ -1644,12 +2015,12 @@ export default function SuperAdminOnboardingPage() {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
                 <div className="text-center">
-                    <div className="text-red-600 mb-4">Error: {error}</div>
+                    <div className="text-red-600 mb-4">{t('onboarding.error.label')} {error}</div>
                     <button
                         onClick={() => window.location.reload()}
                         className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
                     >
-                        Retry
+                        {t('onboarding.error.retry')}
                     </button>
                 </div>
             </div>
@@ -1659,7 +2030,7 @@ export default function SuperAdminOnboardingPage() {
     if (!restaurant) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="text-gray-900">Restaurant not found...</div>
+                <div className="text-gray-900">{t('onboarding.loading.notFound')}</div>
             </div>
         )
     }
@@ -1688,16 +2059,16 @@ export default function SuperAdminOnboardingPage() {
                     <div className="flex items-center justify-between">
                         <div className="flex items-center">
                             <button
-                                onClick={() => router.push('/restaurants')}
+                                onClick={() => router.push('/admin/restaurants')}
                                 className="mr-4 p-2 text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-100 transition"
                             >
                                 <ChevronLeftIcon className="h-5 w-5" />
                             </button>
                             <div>
-                                <h1 className="text-xl font-semibold text-gray-900">{restaurant.name} - Onboarding</h1>
+                                <h1 className="text-xl font-semibold text-gray-900">{restaurant.name} - {t('onboarding.header.title')}</h1>
                                 <p className="text-sm text-gray-600">
-                                    Super Admin Setup • Step {currentStep} of 6
-                                    {progress && ` • ${progress.completed_steps.length}/6 completed`}
+                                    {t('onboarding.header.subtitle', { step: currentStep })}
+                                    {progress && ` • ${t('onboarding.header.progress', { completed: progress.completed_steps.length })}`}
                                 </p>
                             </div>
                         </div>
@@ -1705,7 +2076,7 @@ export default function SuperAdminOnboardingPage() {
                             <div className="flex items-center space-x-4">
                                 <div className="text-right">
                                     <p className="text-sm font-medium text-gray-900">
-                                        {progress.completed_steps.length}/6 Steps
+                                        {t('onboarding.header.stepsCount', { completed: progress.completed_steps.length })}
                                     </p>
                                     <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
                                         <div
@@ -1738,7 +2109,7 @@ export default function SuperAdminOnboardingPage() {
                                     {progress && (
                                         <div className="pt-3 border-t border-gray-200">
                                             <div className="flex items-center justify-between mb-2">
-                                                <span className="text-xs font-medium text-gray-700">Progress</span>
+                                                <span className="text-xs font-medium text-gray-700">{t('onboarding.sidebar.progress')}</span>
                                                 <span className="text-xs font-semibold text-[#2BE89A]">
                         {progress.completed_steps.length}/6
                       </span>
@@ -1777,8 +2148,8 @@ export default function SuperAdminOnboardingPage() {
                                             }`} />
                                         </div>
                                         <div>
-                                            <h3 className="font-semibold text-sm text-gray-900">Welcome</h3>
-                                            <p className="text-xs text-gray-500">Start restaurant setup</p>
+                                            <h3 className="font-semibold text-sm text-gray-900">{t('onboarding.sidebar.welcome.title')}</h3>
+                                            <p className="text-xs text-gray-500">{t('onboarding.sidebar.welcome.description')}</p>
                                         </div>
                                     </div>
                                 </button>
@@ -1869,10 +2240,10 @@ export default function SuperAdminOnboardingPage() {
                                                 <RocketLaunchIcon className="h-8 w-8 text-black" />
                                             </div>
                                             <h1 className="text-3xl font-bold text-gray-900 mb-3">
-                                                Setup {restaurant.name}
+                                                {t('onboarding.welcome.title', { restaurant: restaurant.name })}
                                             </h1>
                                             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                                                Configure all necessary integrations and settings to get {restaurant.name} ready for split payments
+                                                {t('onboarding.welcome.description', { restaurant: restaurant.name })}
                                             </p>
                                         </div>
                                     </div>
@@ -1899,8 +2270,8 @@ export default function SuperAdminOnboardingPage() {
                                             className="w-full px-6 py-4 bg-gradient-to-r from-[#2BE89A] to-[#4FFFB0] text-black font-semibold rounded-xl hover:shadow-lg transform hover:scale-[1.02] transition-all group"
                                         >
                     <span className="flex items-center justify-center text-base">
-                      Start Setup
-                      <ArrowRightIcon className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                      {t('onboarding.welcome.startSetup')}
+                        <ArrowRightIcon className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
                     </span>
                                         </button>
                                     </div>

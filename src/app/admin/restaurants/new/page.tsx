@@ -58,13 +58,13 @@ const NewRestaurant: NextPage = () => {
     },
     {
       number: 2,
-      title: t('restaurants.new.contactAndFees.title'),
+      title: t('restaurants.new.steps.contactInfo'),
       description: t('restaurants.new.contactAndFees.description'),
       icon: PhoneIcon,
     },
     {
       number: 3,
-      title: t('restaurants.new.mediaAndBranding.title'),
+      title: t('restaurants.new.steps.media'),
       description: t('restaurants.new.mediaAndBranding.description'),
       icon: PhotoIcon,
     },
@@ -88,13 +88,13 @@ const NewRestaurant: NextPage = () => {
       // Validate file type
       const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif']
       if (!validTypes.includes(file.type)) {
-        alert(t('restaurants.new.mediaAndBranding.onlyPngJpgAllowed'))
+        setError(t('restaurants.new.errors.invalidFileType'))
         return
       }
 
       // Validate file size (10MB)
       if (file.size > 10 * 1024 * 1024) {
-        alert(t('restaurants.new.mediaAndBranding.fileTooLarge'))
+        setError(t('restaurants.new.errors.fileTooLarge'))
         return
       }
 
@@ -107,6 +107,7 @@ const NewRestaurant: NextPage = () => {
         [`${fieldName}Preview`]: previewUrl,
       }))
       setShowMediaError(false)
+      setError(null)
     }
   }
 
@@ -196,7 +197,7 @@ const NewRestaurant: NextPage = () => {
       router.push('/admin/restaurants')
     } catch (err: any) {
       console.error('Error creating restaurant:', err)
-      setError(err.message || 'Failed to create restaurant')
+      setError(t('restaurants.new.errors.createFailed'))
     } finally {
       setLoading(false)
     }
@@ -278,7 +279,7 @@ const NewRestaurant: NextPage = () => {
 
           <div>
             <label htmlFor="address" className="block text-sm font-medium mb-2 text-[#6B7280]">
-              {t('restaurants.new.businessInfo.address')} <span className="text-red-500">*</span>
+              {t('restaurants.new.form.addressLabel')} <span className="text-red-500">*</span>
             </label>
             <input
                 type="text"
@@ -352,12 +353,12 @@ const NewRestaurant: NextPage = () => {
       <div className="space-y-6">
         <div className="flex items-center space-x-3 mb-6">
           <EnvelopeIcon className="h-6 w-6 text-green-500" />
-          <h2 className="text-xl font-semibold text-[#111827]">{t('restaurants.new.contactAndFees.contactInfo.title')}</h2>
+          <h2 className="text-xl font-semibold text-[#111827]">{t('restaurants.new.form.contactInfoTitle')}</h2>
         </div>
         <div className="grid grid-cols-1 gap-5">
           <div>
             <label htmlFor="contact_email" className="block text-sm font-medium mb-2 text-[#6B7280]">
-              {t('restaurants.new.contactAndFees.contactInfo.contactEmail')} <span className="text-red-500">*</span>
+              {t('restaurants.new.form.contactEmailLabel')} <span className="text-red-500">*</span>
             </label>
             <input
                 type="email"
@@ -365,7 +366,7 @@ const NewRestaurant: NextPage = () => {
                 id="contact_email"
                 required
                 className="w-full px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent bg-white border border-gray-200 text-gray-900 placeholder-gray-400 focus:ring-green-500 hover:border-gray-300"
-                placeholder="restaurant@example.com"
+                placeholder={t('restaurants.new.form.contactEmailPlaceholder')}
                 value={formData.contact_email}
                 onChange={handleInputChange}
             />
@@ -374,14 +375,14 @@ const NewRestaurant: NextPage = () => {
           <div>
             <label htmlFor="contact_phone" className="block text-sm font-medium mb-2 text-[#6B7280]">
               <PhoneIcon className="inline h-4 w-4 mr-1" />
-              {t('restaurants.new.contactAndFees.contactInfo.contactPhone')}
+              {t('restaurants.new.form.contactPhoneLabel')}
             </label>
             <input
                 type="tel"
                 name="contact_phone"
                 id="contact_phone"
                 className="w-full px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent bg-white border border-gray-200 text-gray-900 placeholder-gray-400 focus:ring-green-500 hover:border-gray-300"
-                placeholder={t('restaurants.new.contactAndFees.contactInfo.phonePlaceholder')}
+                placeholder={t('restaurants.new.form.contactPhonePlaceholder')}
                 value={formData.contact_phone}
                 onChange={handleInputChange}
             />
@@ -389,33 +390,19 @@ const NewRestaurant: NextPage = () => {
 
           <div>
             <label htmlFor="website" className="block text-sm font-medium mb-2 text-[#6B7280]">
-              Website
+              {t('restaurants.new.form.websiteLabel')}
             </label>
             <input
                 type="url"
                 name="website"
                 id="website"
                 className="w-full px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent bg-white border border-gray-200 text-gray-900 placeholder-gray-400 focus:ring-green-500 hover:border-gray-300"
-                placeholder="https://restaurant.com"
+                placeholder={t('restaurants.new.form.websitePlaceholder')}
                 value={formData.website}
                 onChange={handleInputChange}
             />
           </div>
         </div>
-
-        {/*/!* Next Steps Info *!/*/}
-        {/*<div className="mt-6 rounded-lg p-4 border bg-green-50 border-green-200">*/}
-        {/*  <div className="flex items-start">*/}
-        {/*    <ArrowRightIcon className="h-5 w-5 mt-0.5 mr-3 flex-shrink-0 text-green-600" />*/}
-        {/*    <div>*/}
-        {/*      <p className="font-medium mb-1 text-green-700">Next Steps</p>*/}
-        {/*      <p className="text-sm text-gray-600">*/}
-        {/*        After creating the restaurant, it will be available in the system with "onboarding" status.*/}
-        {/*        The restaurant team can then complete their setup including POS integration.*/}
-        {/*      </p>*/}
-        {/*    </div>*/}
-        {/*  </div>*/}
-        {/*</div>*/}
       </div>
   )
 
@@ -449,7 +436,7 @@ const NewRestaurant: NextPage = () => {
                   <div className="relative">
                     <img
                         src={formData.logoPreview}
-                        alt="Logo preview"
+                        alt={t('restaurants.new.mediaAndBranding.logoPreviewAlt')}
                         className="w-full h-40 object-contain rounded-lg border bg-gray-50 border-gray-200"
                     />
                     <button
@@ -461,6 +448,7 @@ const NewRestaurant: NextPage = () => {
                           if (logoInput) logoInput.value = ''
                         }}
                         className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                        title={t('restaurants.new.mediaAndBranding.removeImage')}
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -513,7 +501,7 @@ const NewRestaurant: NextPage = () => {
                   <div className="relative">
                     <img
                         src={formData.bannerPreview}
-                        alt="Banner preview"
+                        alt={t('restaurants.new.mediaAndBranding.bannerPreviewAlt')}
                         className="w-full h-40 object-cover rounded-lg border bg-gray-50 border-gray-200"
                     />
                     <button
@@ -525,6 +513,7 @@ const NewRestaurant: NextPage = () => {
                           if (bannerInput) bannerInput.value = ''
                         }}
                         className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                        title={t('restaurants.new.mediaAndBranding.removeImage')}
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -570,19 +559,6 @@ const NewRestaurant: NextPage = () => {
 
           </div>
         </div>
-
-        {/*/!* Next Steps Info *!/*/}
-        {/*<div className="mt-6 rounded-lg p-4 border bg-green-50 border-green-200">*/}
-        {/*  <div className="flex items-start">*/}
-        {/*    <ArrowRightIcon className="h-5 w-5 mt-0.5 mr-3 flex-shrink-0 text-green-600" />*/}
-        {/*    <div>*/}
-        {/*      <p className="font-medium mb-1 text-green-700">{t('restaurants.new.mediaAndBranding.nextStepsTitle')}</p>*/}
-        {/*      <p className="text-sm text-gray-600">*/}
-        {/*        {t('restaurants.new.success.message')}*/}
-        {/*      </p>*/}
-        {/*    </div>*/}
-        {/*  </div>*/}
-        {/*</div>*/}
       </div>
   )
 
@@ -594,8 +570,8 @@ const NewRestaurant: NextPage = () => {
               {/* Breadcrumb */}
               <Breadcrumb
                   items={[
-                    { label: 'Restaurants', href: '/admin/restaurants' },
-                    { label: t('restaurants.addNewRestaurant') },
+                    { label: t('restaurants.navigation.breadcrumb'), href: '/admin/restaurants' },
+                    { label: t('restaurants.new.breadcrumb') },
                   ]}
               />
 
@@ -605,7 +581,7 @@ const NewRestaurant: NextPage = () => {
                   className="inline-flex items-center px-4 py-2 rounded-lg transition-all text-sm font-medium group bg-gray-50 border border-gray-200 text-gray-600 hover:text-gray-700 hover:bg-gray-100 hover:border-green-300"
               >
                 <ArrowLeftIcon className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
-                {t('restaurants.backToList')}
+                {t('restaurants.new.navigation.backToList')}
               </Link>
 
               {error && (
@@ -627,7 +603,7 @@ const NewRestaurant: NextPage = () => {
                       {t('restaurants.new.title')}
                     </h1>
                     <p className="text-center mb-8 text-base text-[#6B7280]">
-                      Create a new restaurant partner in the system
+                      {t('restaurants.new.description')}
                     </p>
                     {renderStepIndicator()}
                   </div>
@@ -684,7 +660,7 @@ const NewRestaurant: NextPage = () => {
                                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
-                                Creating...
+                                {t('restaurants.new.loading.creating')}
                               </>
                           ) : (
                               <>

@@ -120,6 +120,17 @@ async function getRestaurantDetail(restaurantId: number): Promise<RestaurantDeta
   const response = await fetch(`${API_BASE_URL}/super_admin/restaurants/detail/${restaurantId}`, {
     headers: getAuthHeaders()
   })
+  // Добавить обработку 401
+  if (response.status === 401) {
+    localStorage.removeItem('auth_token')
+    sessionStorage.removeItem('auth_token')
+
+    // Редирект на логин
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login'
+    }
+    return Promise.reject(new Error('Unauthorized'))
+  }
   if (!response.ok) throw new Error('Failed to fetch restaurant detail')
   return response.json()
 }
@@ -129,6 +140,17 @@ async function archiveRestaurant(restaurantId: number): Promise<void> {
     method: 'PATCH',
     headers: getAuthHeaders()
   })
+  // Добавить обработку 401
+  if (response.status === 401) {
+    localStorage.removeItem('auth_token')
+    sessionStorage.removeItem('auth_token')
+
+    // Редирект на логин
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login'
+    }
+    return Promise.reject(new Error('Unauthorized'))
+  }
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
     throw new Error(errorData.detail || 'Failed to archive restaurant')
@@ -140,6 +162,17 @@ async function deleteRestaurant(restaurantId: number): Promise<void> {
     method: 'DELETE',
     headers: getAuthHeaders()
   })
+  // Добавить обработку 401
+  if (response.status === 401) {
+    localStorage.removeItem('auth_token')
+    sessionStorage.removeItem('auth_token')
+
+    // Редирект на логин
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login'
+    }
+    return Promise.reject(new Error('Unauthorized'))
+  }
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
     throw new Error(errorData.detail || 'Failed to delete restaurant')
@@ -151,6 +184,17 @@ async function restoreRestaurant(restaurantId: number): Promise<void> {
     method: 'PATCH',
     headers: getAuthHeaders()
   })
+  // Добавить обработку 401
+  if (response.status === 401) {
+    localStorage.removeItem('auth_token')
+    sessionStorage.removeItem('auth_token')
+
+    // Редирект на логин
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login'
+    }
+    return Promise.reject(new Error('Unauthorized'))
+  }
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
     throw new Error(errorData.detail || 'Failed to restore restaurant')
@@ -161,6 +205,17 @@ async function getRestaurantTables(restaurantId: number): Promise<QRTable[]> {
   const response = await fetch(`${API_BASE_URL}/super_admin/restaurants/${restaurantId}/tables/qr/all`, {
     headers: getAuthHeaders()
   })
+  // Добавить обработку 401
+  if (response.status === 401) {
+    localStorage.removeItem('auth_token')
+    sessionStorage.removeItem('auth_token')
+
+    // Редирект на логин
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login'
+    }
+    return Promise.reject(new Error('Unauthorized'))
+  }
   if (!response.ok) throw new Error('Failed to fetch tables')
   return response.json()
 }
@@ -171,6 +226,17 @@ async function createTable(restaurantId: number, tableData: any): Promise<QRTabl
     headers: getAuthHeaders(),
     body: JSON.stringify(tableData)
   })
+  // Добавить обработку 401
+  if (response.status === 401) {
+    localStorage.removeItem('auth_token')
+    sessionStorage.removeItem('auth_token')
+
+    // Редирект на логин
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login'
+    }
+    return Promise.reject(new Error('Unauthorized'))
+  }
   if (!response.ok) throw new Error('Failed to create table')
   return response.json()
 }
@@ -180,6 +246,17 @@ async function deleteTable(restaurantId: number, tableId: number): Promise<boole
     method: 'DELETE',
     headers: getAuthHeaders()
   })
+  // Добавить обработку 401
+  if (response.status === 401) {
+    localStorage.removeItem('auth_token')
+    sessionStorage.removeItem('auth_token')
+
+    // Редирект на логин
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login'
+    }
+    return Promise.reject(new Error('Unauthorized'))
+  }
   if (!response.ok) throw new Error('Failed to delete table')
   return true
 }
@@ -189,6 +266,17 @@ async function toggleTableStatus(restaurantId: number, tableId: number): Promise
     method: 'PATCH',
     headers: getAuthHeaders()
   })
+  // Добавить обработку 401
+  if (response.status === 401) {
+    localStorage.removeItem('auth_token')
+    sessionStorage.removeItem('auth_token')
+
+    // Редирект на логин
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login'
+    }
+    return Promise.reject(new Error('Unauthorized'))
+  }
   if (!response.ok) throw new Error('Failed to toggle table status')
   return response.json()
 }

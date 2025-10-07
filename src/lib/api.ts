@@ -33,6 +33,18 @@ async function apiRequest<T>(
 
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config)
 
+    // Добавить обработку 401
+    if (response.status === 401) {
+        localStorage.removeItem('auth_token')
+        sessionStorage.removeItem('auth_token')
+
+        // Редирект на логин
+        if (typeof window !== 'undefined') {
+            window.location.href = '/login'
+        }
+        return Promise.reject(new Error('Unauthorized'))
+    }
+
     if (!response.ok) {
         let errorMessage = `API Error: ${response.status} ${response.statusText}`
         let errorData: any = null

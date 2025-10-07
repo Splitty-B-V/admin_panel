@@ -50,6 +50,17 @@ async function getRestaurantDetail(restaurantId: number) {
     const response = await fetch(`${API_BASE_URL}/super_admin/restaurants/${restaurantId}`, {
         headers: getAuthHeaders()
     })
+    // Добавить обработку 401
+    if (response.status === 401) {
+        localStorage.removeItem('auth_token')
+        sessionStorage.removeItem('auth_token')
+
+        // Редирект на логин
+        if (typeof window !== 'undefined') {
+            window.location.href = '/login'
+        }
+        return Promise.reject(new Error('Unauthorized'))
+    }
     if (!response.ok) throw new Error('Failed to fetch restaurant')
     return response.json()
 }
@@ -58,6 +69,17 @@ async function getRestaurantOnboardingProgress(restaurantId: number) {
     const response = await fetch(`${API_BASE_URL}/super_admin/restaurants/${restaurantId}/onboarding/progress`, {
         headers: getAuthHeaders()
     })
+    // Добавить обработку 401
+    if (response.status === 401) {
+        localStorage.removeItem('auth_token')
+        sessionStorage.removeItem('auth_token')
+
+        // Редирект на логин
+        if (typeof window !== 'undefined') {
+            window.location.href = '/login'
+        }
+        return Promise.reject(new Error('Unauthorized'))
+    }
     if (!response.ok) throw new Error('Failed to fetch progress')
     return response.json()
 }
@@ -68,6 +90,17 @@ async function completePersonnelStep(restaurantId: number, data: any) {
         headers: getAuthHeaders(),
         body: JSON.stringify(data)
     })
+    // Добавить обработку 401
+    if (response.status === 401) {
+        localStorage.removeItem('auth_token')
+        sessionStorage.removeItem('auth_token')
+
+        // Редирект на логин
+        if (typeof window !== 'undefined') {
+            window.location.href = '/login'
+        }
+        return Promise.reject(new Error('Unauthorized'))
+    }
     if (!response.ok) throw new Error('Failed to complete personnel step')
     return response.json()
 }
@@ -78,6 +111,17 @@ async function completeStripeStep(restaurantId: number, data: any) {
         headers: getAuthHeaders(),
         body: JSON.stringify(data)
     })
+    // Добавить обработку 401
+    if (response.status === 401) {
+        localStorage.removeItem('auth_token')
+        sessionStorage.removeItem('auth_token')
+
+        // Редирект на логин
+        if (typeof window !== 'undefined') {
+            window.location.href = '/login'
+        }
+        return Promise.reject(new Error('Unauthorized'))
+    }
     if (!response.ok) throw new Error('Failed to complete stripe step')
     return response.json()
 }
@@ -88,6 +132,17 @@ async function completePOSStep(restaurantId: number, data: any) {
         headers: getAuthHeaders(),
         body: JSON.stringify(data)
     })
+    // Добавить обработку 401
+    if (response.status === 401) {
+        localStorage.removeItem('auth_token')
+        sessionStorage.removeItem('auth_token')
+
+        // Редирект на логин
+        if (typeof window !== 'undefined') {
+            window.location.href = '/login'
+        }
+        return Promise.reject(new Error('Unauthorized'))
+    }
     if (!response.ok) throw new Error('Failed to complete POS step')
     return response.json()
 }
@@ -98,6 +153,17 @@ async function completeQRStandsStep(restaurantId: number, data: any) {
         headers: getAuthHeaders(),
         body: JSON.stringify(data)
     })
+    // Добавить обработку 401
+    if (response.status === 401) {
+        localStorage.removeItem('auth_token')
+        sessionStorage.removeItem('auth_token')
+
+        // Редирект на логин
+        if (typeof window !== 'undefined') {
+            window.location.href = '/login'
+        }
+        return Promise.reject(new Error('Unauthorized'))
+    }
     if (!response.ok) throw new Error('Failed to complete QR stands step')
     return response.json()
 }
@@ -108,6 +174,17 @@ async function completeGoogleReviewsStep(restaurantId: number, data: any) {
         headers: getAuthHeaders(),
         body: JSON.stringify(data)
     })
+    // Добавить обработку 401
+    if (response.status === 401) {
+        localStorage.removeItem('auth_token')
+        sessionStorage.removeItem('auth_token')
+
+        // Редирект на логин
+        if (typeof window !== 'undefined') {
+            window.location.href = '/login'
+        }
+        return Promise.reject(new Error('Unauthorized'))
+    }
     if (!response.ok) throw new Error('Failed to complete Google reviews step')
     return response.json()
 }
@@ -118,6 +195,17 @@ async function completeTelegramStep(restaurantId: number, data: any) {
         headers: getAuthHeaders(),
         body: JSON.stringify(data)
     })
+    // Добавить обработку 401
+    if (response.status === 401) {
+        localStorage.removeItem('auth_token')
+        sessionStorage.removeItem('auth_token')
+
+        // Редирект на логин
+        if (typeof window !== 'undefined') {
+            window.location.href = '/login'
+        }
+        return Promise.reject(new Error('Unauthorized'))
+    }
     if (!response.ok) throw new Error('Failed to complete telegram step')
     return response.json()
 }
@@ -127,6 +215,17 @@ async function skipOnboardingStep(restaurantId: number, step: number) {
         method: 'POST',
         headers: getAuthHeaders()
     })
+    // Добавить обработку 401
+    if (response.status === 401) {
+        localStorage.removeItem('auth_token')
+        sessionStorage.removeItem('auth_token')
+
+        // Редирект на логин
+        if (typeof window !== 'undefined') {
+            window.location.href = '/login'
+        }
+        return Promise.reject(new Error('Unauthorized'))
+    }
     if (!response.ok) throw new Error('Failed to skip step')
     return response.json()
 }

@@ -119,6 +119,18 @@ const POSIntegration: NextPage = () => {
                 headers: getAuthHeaders()
             })
 
+            // Добавить обработку 401
+            if (response.status === 401) {
+                localStorage.removeItem('auth_token')
+                sessionStorage.removeItem('auth_token')
+
+                // Редирект на логин
+                if (typeof window !== 'undefined') {
+                    window.location.href = '/login'
+                }
+                return Promise.reject(new Error('Unauthorized'))
+            }
+
             if (response.ok) {
                 const restaurantsData = await response.json()
                 setAllRestaurants(restaurantsData)

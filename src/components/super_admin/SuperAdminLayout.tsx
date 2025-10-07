@@ -211,7 +211,7 @@ const SuperAdminLayout: React.FC<LayoutProps> = ({ children }): React.ReactEleme
                                     <Link href="/admin/dashboard" className="flex items-center flex-1">
                                         <div className="w-12 h-12 rounded-xl overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 group-hover:border-blue-200 transition-all duration-200 shadow-sm flex items-center justify-center">
                                             <Image
-                                                src="/favicon-splitty.png"
+                                                src="/images/favicon-splitty.png"
                                                 alt="Splitty Logo"
                                                 width={32}
                                                 height={32}

@@ -160,6 +160,10 @@ const Restaurants: NextPage = () => {
 
   const { t } = useLanguage()
 
+  useEffect(() => {
+    document.title = 'Admin Panel - Splitty'
+  }, [])
+
   // Дебаунсинг для поиска
   useEffect(() => {
     const timer = setTimeout(() => {

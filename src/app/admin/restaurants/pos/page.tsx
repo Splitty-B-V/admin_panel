@@ -91,6 +91,10 @@ const POSIntegration: NextPage = () => {
     const [selectedFilter, setSelectedFilter] = useState('all')
     const [showNotifications, setShowNotifications] = useState(true)
 
+    useEffect(() => {
+        document.title = 'Admin Panel - Splitty'
+    }, [])
+
     // Дебаунсинг для поиска
     useEffect(() => {
         const timer = setTimeout(() => {

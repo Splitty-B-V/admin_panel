@@ -256,6 +256,10 @@ export default function SuperAdminOnboardingPage() {
     const searchParams = useSearchParams()
     const restaurantId = parseInt(params.id as string)
 
+    useEffect(() => {
+        document.title = 'Admin Panel - Splitty'
+    }, [])
+
     const OnboardingSteps: OnboardingStep[] = [
         {
             id: 1,

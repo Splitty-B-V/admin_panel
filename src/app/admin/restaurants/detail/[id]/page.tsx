@@ -820,6 +820,10 @@ const RestaurantDetail: NextPage = () => {
     isActive: true
   })
 
+  useEffect(() => {
+    document.title = 'Admin Panel - Splitty'
+  }, [])
+
   // Load restaurant data
   useEffect(() => {
     if (id) {

@@ -1,7 +1,7 @@
 'use client'
 
 import type { NextPage } from 'next'
-import { useState } from 'react'
+import {useEffect, useState} from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import SmartLayout from '@/components/common/SmartLayout'
@@ -30,6 +30,10 @@ const NewRestaurant: NextPage = () => {
 
   const [showMediaError, setShowMediaError] = useState(false)
   const [dragActive, setDragActive] = useState({ logo: false, banner: false })
+
+  useEffect(() => {
+    document.title = 'Admin Panel - Splitty'
+  }, [])
 
   const [formData, setFormData] = useState({
     // Step 1: Basic Information

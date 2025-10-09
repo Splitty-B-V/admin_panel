@@ -8,6 +8,7 @@ import Image from 'next/image'
 import SmartLayout from '@/components/common/SmartLayout'
 import QRCode from 'qrcode'
 import * as XLSX from 'xlsx'
+import { useLanguage } from '@/contexts/LanguageContext'
 import {
   ArrowLeftIcon,
   PencilIcon,
@@ -120,12 +121,10 @@ async function getRestaurantDetail(restaurantId: number): Promise<RestaurantDeta
   const response = await fetch(`${API_BASE_URL}/super_admin/restaurants/detail/${restaurantId}`, {
     headers: getAuthHeaders()
   })
-  // Добавить обработку 401
   if (response.status === 401) {
     localStorage.removeItem('auth_token')
     sessionStorage.removeItem('auth_token')
 
-    // Редирект на логин
     if (typeof window !== 'undefined') {
       window.location.href = '/login'
     }
@@ -140,12 +139,10 @@ async function archiveRestaurant(restaurantId: number): Promise<void> {
     method: 'PATCH',
     headers: getAuthHeaders()
   })
-  // Добавить обработку 401
   if (response.status === 401) {
     localStorage.removeItem('auth_token')
     sessionStorage.removeItem('auth_token')
 
-    // Редирект на логин
     if (typeof window !== 'undefined') {
       window.location.href = '/login'
     }
@@ -162,12 +159,10 @@ async function deleteRestaurant(restaurantId: number): Promise<void> {
     method: 'DELETE',
     headers: getAuthHeaders()
   })
-  // Добавить обработку 401
   if (response.status === 401) {
     localStorage.removeItem('auth_token')
     sessionStorage.removeItem('auth_token')
 
-    // Редирект на логин
     if (typeof window !== 'undefined') {
       window.location.href = '/login'
     }
@@ -184,12 +179,10 @@ async function restoreRestaurant(restaurantId: number): Promise<void> {
     method: 'PATCH',
     headers: getAuthHeaders()
   })
-  // Добавить обработку 401
   if (response.status === 401) {
     localStorage.removeItem('auth_token')
     sessionStorage.removeItem('auth_token')
 
-    // Редирект на логин
     if (typeof window !== 'undefined') {
       window.location.href = '/login'
     }
@@ -205,12 +198,10 @@ async function getRestaurantTables(restaurantId: number): Promise<QRTable[]> {
   const response = await fetch(`${API_BASE_URL}/super_admin/restaurants/${restaurantId}/tables/qr/all`, {
     headers: getAuthHeaders()
   })
-  // Добавить обработку 401
   if (response.status === 401) {
     localStorage.removeItem('auth_token')
     sessionStorage.removeItem('auth_token')
 
-    // Редирект на логин
     if (typeof window !== 'undefined') {
       window.location.href = '/login'
     }
@@ -226,12 +217,10 @@ async function createTable(restaurantId: number, tableData: any): Promise<QRTabl
     headers: getAuthHeaders(),
     body: JSON.stringify(tableData)
   })
-  // Добавить обработку 401
   if (response.status === 401) {
     localStorage.removeItem('auth_token')
     sessionStorage.removeItem('auth_token')
 
-    // Редирект на логин
     if (typeof window !== 'undefined') {
       window.location.href = '/login'
     }
@@ -246,12 +235,10 @@ async function deleteTable(restaurantId: number, tableId: number): Promise<boole
     method: 'DELETE',
     headers: getAuthHeaders()
   })
-  // Добавить обработку 401
   if (response.status === 401) {
     localStorage.removeItem('auth_token')
     sessionStorage.removeItem('auth_token')
 
-    // Редирект на логин
     if (typeof window !== 'undefined') {
       window.location.href = '/login'
     }
@@ -266,12 +253,10 @@ async function toggleTableStatus(restaurantId: number, tableId: number): Promise
     method: 'PATCH',
     headers: getAuthHeaders()
   })
-  // Добавить обработку 401
   if (response.status === 401) {
     localStorage.removeItem('auth_token')
     sessionStorage.removeItem('auth_token')
 
-    // Редирект на логин
     if (typeof window !== 'undefined') {
       window.location.href = '/login'
     }
@@ -311,6 +296,7 @@ const ArchiveDeleteModal: React.FC<{
   onConfirm: () => void;
   isArchive: boolean;
 }> = ({ isOpen, onClose, restaurant, onConfirm, isArchive }) => {
+  const { t } = useLanguage()
   const [confirmText, setConfirmText] = useState('')
 
   if (!isOpen || !restaurant) return null
@@ -330,10 +316,10 @@ const ArchiveDeleteModal: React.FC<{
             </div>
             <div className="ml-4">
               <h3 className="text-lg font-semibold text-gray-900">
-                {isArchive ? 'Archive Restaurant' : 'Delete Restaurant Permanently'}
+                {isArchive ? t('restaurant.detail.modal.archive.title') : t('restaurant.detail.modal.delete.title')}
               </h3>
               <p className="text-sm text-gray-500">
-                {isArchive ? 'Temporarily disable this restaurant' : 'This action cannot be undone'}
+                {isArchive ? t('restaurant.detail.modal.archive.subtitle') : t('restaurant.detail.modal.delete.subtitle')}
               </p>
             </div>
           </div>
@@ -341,8 +327,8 @@ const ArchiveDeleteModal: React.FC<{
           <div className="mb-6">
             <p className="text-gray-600 mb-4">
               {isArchive
-                  ? `Are you sure you want to archive ${restaurant.name}? This will temporarily disable the restaurant.`
-                  : `Are you sure you want to permanently delete ${restaurant.name}? This action cannot be undone and all data will be lost.`
+                  ? t('restaurant.detail.modal.archive.description', { name: restaurant.name })
+                  : t('restaurant.detail.modal.delete.description', { name: restaurant.name })
               }
             </p>
 
@@ -352,13 +338,13 @@ const ArchiveDeleteModal: React.FC<{
                     <ExclamationTriangleIcon className="h-5 w-5 text-red-400 mr-3 mt-0.5" />
                     <div>
                       <h4 className="text-sm font-medium text-red-800">
-                        Warning: This will permanently delete
+                        {t('restaurant.detail.modal.delete.warning.title')}
                       </h4>
                       <ul className="mt-2 text-sm text-red-700 list-disc list-inside">
-                        <li>All restaurant data</li>
-                        <li>All table configurations</li>
-                        <li>All staff accounts</li>
-                        <li>All transaction history</li>
+                        <li>{t('restaurant.detail.modal.delete.warning.data')}</li>
+                        <li>{t('restaurant.detail.modal.delete.warning.tables')}</li>
+                        <li>{t('restaurant.detail.modal.delete.warning.staff')}</li>
+                        <li>{t('restaurant.detail.modal.delete.warning.transactions')}</li>
                       </ul>
                     </div>
                   </div>
@@ -368,13 +354,13 @@ const ArchiveDeleteModal: React.FC<{
             {!isArchive && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Type <span className="font-semibold">{restaurant.name}</span> to confirm:
+                    {t('restaurant.detail.modal.delete.confirm.label', { name: restaurant.name })}
                   </label>
                   <input
                       type="text"
                       value={confirmText}
                       onChange={(e) => setConfirmText(e.target.value)}
-                      placeholder="Restaurant name"
+                      placeholder={t('restaurant.detail.modal.delete.confirm.placeholder')}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                   />
                 </div>
@@ -386,7 +372,7 @@ const ArchiveDeleteModal: React.FC<{
                 onClick={onClose}
                 className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
                 onClick={onConfirm}
@@ -397,7 +383,7 @@ const ArchiveDeleteModal: React.FC<{
                         : 'bg-red-600 text-white hover:bg-red-700'
                 }`}
             >
-              {isArchive ? 'Archive Restaurant' : 'Delete Permanently'}
+              {isArchive ? t('restaurant.detail.modal.archive.confirm') : t('restaurant.detail.modal.delete.confirm')}
             </button>
           </div>
         </div>
@@ -412,6 +398,7 @@ const TableManagementModal: React.FC<{
   restaurantId: number;
   restaurantName: string;
 }> = ({ isOpen, onClose, restaurantId, restaurantName }) => {
+  const { t } = useLanguage()
   const [tables, setTables] = useState<QRTable[]>([])
   const [loading, setLoading] = useState(false)
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -451,11 +438,11 @@ const TableManagementModal: React.FC<{
 
       // Main table data
       const allTablesData = tables.map(table => ({
-        'Table #': table.table_number,
-        'Section': table.table_section || 'No Section',
-        'Design': table.table_design,
-        'QR Link': table.table_link,
-        'Status': table.is_active ? 'Active' : 'Inactive'
+        [t('restaurant.tables.export.headers.tableNumber')]: table.table_number,
+        [t('restaurant.tables.export.headers.section')]: table.table_section || t('restaurant.tables.export.noSection'),
+        [t('restaurant.tables.export.headers.design')]: table.table_design,
+        [t('restaurant.tables.export.headers.qrLink')]: table.table_link,
+        [t('restaurant.tables.export.headers.status')]: table.is_active ? t('common.active') : t('common.inactive')
       }))
 
       const allTablesWs = XLSX.utils.json_to_sheet(allTablesData)
@@ -467,11 +454,11 @@ const TableManagementModal: React.FC<{
         { wch: 12 }  // Status
       ]
 
-      XLSX.utils.book_append_sheet(wb, allTablesWs, "All Tables")
+      XLSX.utils.book_append_sheet(wb, allTablesWs, t('restaurant.tables.export.sheets.allTables'))
 
       // Section sheets
       const groupedBySections = tables.reduce((acc, table) => {
-        const section = table.table_section || 'No Section'
+        const section = table.table_section || t('restaurant.tables.export.noSection')
         if (!acc[section]) acc[section] = []
         acc[section].push(table)
         return acc
@@ -479,10 +466,10 @@ const TableManagementModal: React.FC<{
 
       Object.entries(groupedBySections).forEach(([sectionName, sectionTables]) => {
         const sectionData = sectionTables.map(table => ({
-          'Table #': table.table_number,
-          'Design': table.table_design,
-          'QR Link': table.table_link,
-          'Status': table.is_active ? 'Active' : 'Inactive'
+          [t('restaurant.tables.export.headers.tableNumber')]: table.table_number,
+          [t('restaurant.tables.export.headers.design')]: table.table_design,
+          [t('restaurant.tables.export.headers.qrLink')]: table.table_link,
+          [t('restaurant.tables.export.headers.status')]: table.is_active ? t('common.active') : t('common.inactive')
         }))
 
         const sectionWs = XLSX.utils.json_to_sheet(sectionData)
@@ -507,7 +494,7 @@ const TableManagementModal: React.FC<{
 
     } catch (error) {
       console.error('Export failed:', error)
-      alert('Failed to export Excel file')
+      alert(t('restaurant.tables.export.error'))
     } finally {
       setLoading(false)
     }
@@ -523,7 +510,7 @@ const TableManagementModal: React.FC<{
 
   // Group tables by section
   const groupedTables = filteredTables.reduce((acc, table) => {
-    const section = table.table_section || 'No Section'
+    const section = table.table_section || t('restaurant.tables.noSection')
     if (!acc[section]) acc[section] = []
     acc[section].push(table)
     return acc
@@ -532,7 +519,7 @@ const TableManagementModal: React.FC<{
   const handleCreateTable = async () => {
     try {
       if (!newTable.table_number || !newTable.table_section) {
-        alert('Please fill in table number and section')
+        alert(t('restaurant.tables.create.validation'))
         return
       }
 
@@ -547,7 +534,7 @@ const TableManagementModal: React.FC<{
       loadTables()
     } catch (error) {
       console.error('Failed to create table:', error)
-      alert('Failed to create table')
+      alert(t('restaurant.tables.create.error'))
     }
   }
 
@@ -561,7 +548,7 @@ const TableManagementModal: React.FC<{
   }
 
   const handleDeleteTable = async (tableId: number) => {
-    if (!confirm('Are you sure you want to delete this table?')) return
+    if (!confirm(t('restaurant.tables.delete.confirmation'))) return
 
     try {
       await deleteTable(restaurantId, tableId)
@@ -579,8 +566,8 @@ const TableManagementModal: React.FC<{
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
             <div>
-              <h3 className="text-2xl font-bold text-gray-900">Table Management</h3>
-              <p className="text-gray-600">{restaurantName} - {tables.length} tables</p>
+              <h3 className="text-2xl font-bold text-gray-900">{t('restaurant.tables.modal.title')}</h3>
+              <p className="text-gray-600">{t('restaurant.tables.modal.subtitle', { name: restaurantName, count: tables.length })}</p>
             </div>
             <div className="flex items-center gap-3">
               <button
@@ -589,14 +576,14 @@ const TableManagementModal: React.FC<{
                   className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ArrowDownTrayIcon className="h-4 w-4" />
-                Export to Excel
+                {t('restaurant.tables.actions.export')}
               </button>
               <button
                   onClick={() => setShowCreateForm(true)}
                   className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition flex items-center gap-2"
               >
                 <PlusIcon className="h-4 w-4" />
-                Add Table
+                {t('restaurant.tables.actions.add')}
               </button>
               <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
                 <XMarkIcon className="h-6 w-6" />
@@ -617,7 +604,7 @@ const TableManagementModal: React.FC<{
                               : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                   >
-                    {section === 'all' ? 'All Tables' : section}
+                    {section === 'all' ? t('restaurant.tables.filters.all') : section}
                   </button>
               ))}
             </div>
@@ -626,17 +613,17 @@ const TableManagementModal: React.FC<{
           {/* Content */}
           <div className="p-6 overflow-y-auto max-h-[60vh]">
             {loading ? (
-                <div className="text-center py-8">Loading tables...</div>
+                <div className="text-center py-8">{t('restaurant.tables.loading')}</div>
             ) : Object.keys(groupedTables).length === 0 ? (
                 <div className="text-center py-12">
                   <TableCellsIcon className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                  <h4 className="text-lg font-medium text-gray-900 mb-2">No Tables Found</h4>
-                  <p className="text-gray-600 mb-4">Start by adding your first table</p>
+                  <h4 className="text-lg font-medium text-gray-900 mb-2">{t('restaurant.tables.empty.title')}</h4>
+                  <p className="text-gray-600 mb-4">{t('restaurant.tables.empty.description')}</p>
                   <button
                       onClick={() => setShowCreateForm(true)}
                       className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition"
                   >
-                    Add Table
+                    {t('restaurant.tables.actions.add')}
                   </button>
                 </div>
             ) : (
@@ -649,7 +636,7 @@ const TableManagementModal: React.FC<{
                               <div key={table.id} className="border border-gray-200 rounded-xl p-4 bg-white">
                                 <div className="flex items-start justify-between mb-3">
                                   <div>
-                                    <h5 className="font-semibold text-gray-900">Table {table.table_number}</h5>
+                                    <h5 className="font-semibold text-gray-900">{t('restaurant.tables.card.tableNumber', { number: table.table_number })}</h5>
                                     <p className="text-sm text-gray-600">{table.table_section}</p>
                                   </div>
                                   <span className={`px-2 py-1 text-xs rounded-full ${
@@ -657,7 +644,7 @@ const TableManagementModal: React.FC<{
                                           ? 'bg-green-100 text-green-700'
                                           : 'bg-gray-100 text-gray-600'
                                   }`}>
-                            {table.is_active ? 'Active' : 'Inactive'}
+                            {table.is_active ? t('common.active') : t('common.inactive')}
                           </span>
                                 </div>
 
@@ -679,12 +666,12 @@ const TableManagementModal: React.FC<{
                                     {table.is_active ? (
                                         <>
                                           <EyeSlashIcon className="h-3 w-3 inline mr-1" />
-                                          Deactivate
+                                          {t('restaurant.tables.actions.deactivate')}
                                         </>
                                     ) : (
                                         <>
                                           <EyeIcon className="h-3 w-3 inline mr-1" />
-                                          Activate
+                                          {t('restaurant.tables.actions.activate')}
                                         </>
                                     )}
                                   </button>
@@ -713,38 +700,38 @@ const TableManagementModal: React.FC<{
           {showCreateForm && (
               <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                 <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
-                  <h4 className="text-lg font-semibold mb-4">Add New Table</h4>
+                  <h4 className="text-lg font-semibold mb-4">{t('restaurant.tables.create.title')}</h4>
 
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Table Number
+                        {t('restaurant.tables.create.fields.tableNumber')} <span className="text-red-500">*</span>
                       </label>
                       <input
                           type="text"
                           value={newTable.table_number}
                           onChange={(e) => setNewTable({...newTable, table_number: e.target.value})}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                          placeholder="e.g., 1, A1, VIP-01"
+                          placeholder={t('restaurant.tables.create.placeholders.tableNumber')}
                       />
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Section
+                        {t('restaurant.tables.create.fields.section')} <span className="text-red-500">*</span>
                       </label>
                       <input
                           type="text"
                           value={newTable.table_section}
                           onChange={(e) => setNewTable({...newTable, table_section: e.target.value})}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                          placeholder="e.g., Main Hall, Terrace, VIP"
+                          placeholder={t('restaurant.tables.create.placeholders.section')}
                       />
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Design
+                        {t('restaurant.tables.create.fields.design')}
                       </label>
                       <select
                           value={newTable.table_design}
@@ -767,7 +754,7 @@ const TableManagementModal: React.FC<{
                           className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
                       />
                       <label htmlFor="is_active" className="ml-2 block text-sm text-gray-900">
-                        Active
+                        {t('common.active')}
                       </label>
                     </div>
                   </div>
@@ -777,13 +764,13 @@ const TableManagementModal: React.FC<{
                         onClick={() => setShowCreateForm(false)}
                         className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                     >
-                      Cancel
+                      {t('common.cancel')}
                     </button>
                     <button
                         onClick={handleCreateTable}
                         className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
                     >
-                      Create Table
+                      {t('restaurant.tables.create.submit')}
                     </button>
                   </div>
                 </div>
@@ -795,6 +782,7 @@ const TableManagementModal: React.FC<{
 }
 
 const RestaurantDetail: NextPage = () => {
+  const { t } = useLanguage()
   const router = useRouter()
   const params = useParams()
   const id = params?.id as string
@@ -821,8 +809,8 @@ const RestaurantDetail: NextPage = () => {
   })
 
   useEffect(() => {
-    document.title = 'Admin Panel - Splitty'
-  }, [])
+    document.title = t('restaurant.detail.pageTitle')
+  }, [t])
 
   // Load restaurant data
   useEffect(() => {
@@ -830,6 +818,21 @@ const RestaurantDetail: NextPage = () => {
       loadRestaurantData()
     }
   }, [id])
+
+  useEffect(() => {
+    // Check URL parameters for Stripe callback
+    const urlParams = new URLSearchParams(window.location.search)
+    const stripeSuccess = urlParams.get('stripe_success')
+
+    if (stripeSuccess === 'true') {
+      // Refresh restaurant data after successful connection
+      loadRestaurantData()
+
+      // Clear URL parameters
+      const newUrl = window.location.pathname
+      window.history.replaceState({}, '', newUrl)
+    }
+  }, [])
 
   const loadRestaurantData = async () => {
     try {
@@ -839,7 +842,7 @@ const RestaurantDetail: NextPage = () => {
       setRestaurant(data)
     } catch (err: any) {
       console.error('Failed to load restaurant:', err)
-      setError(err.message || 'Failed to load restaurant data')
+      setError(err.message || t('restaurant.detail.errors.loadFailed'))
     } finally {
       setLoading(false)
     }
@@ -857,6 +860,42 @@ const RestaurantDetail: NextPage = () => {
       document.body.style.overflow = 'unset'
     }
   }, [showPOSModal, showArchiveDeleteModal, showTableModal])
+
+  const handleStripeConnect = async () => {
+    try {
+      setActionLoading(true)
+      setError(null)
+
+      // Get OAuth URL from backend (используем тот же эндпоинт что и в онбординге)
+      const response = await fetch(`${API_BASE_URL}/super_admin/restaurants/${id}/onboarding/stripe/oauth-url`, {
+        headers: getAuthHeaders()
+      })
+
+      if (response.status === 401) {
+        localStorage.removeItem('auth_token')
+        sessionStorage.removeItem('auth_token')
+        window.location.href = '/login'
+        return
+      }
+
+      if (!response.ok) {
+        throw new Error(t('restaurant.detail.errors.stripeOAuthFailed'))
+      }
+
+      const data = await response.json()
+
+      if (data.oauth_url) {
+        // Redirect to Stripe OAuth
+        window.location.href = data.oauth_url
+      } else {
+        setError(t('restaurant.detail.errors.stripeOAuthUrlFailed'))
+      }
+    } catch (err: any) {
+      setError(err.message || t('restaurant.detail.errors.stripeConnectionFailed'))
+    } finally {
+      setActionLoading(false)
+    }
+  }
 
   const handleArchiveRestore = async () => {
     if (!restaurant) return
@@ -877,7 +916,7 @@ const RestaurantDetail: NextPage = () => {
       setShowArchiveDeleteModal(false)
     } catch (err: any) {
       console.error('Failed to archive/restore restaurant:', err)
-      setError(err.message || 'Failed to update restaurant status')
+      setError(err.message || t('restaurant.detail.errors.statusUpdateFailed'))
     } finally {
       setActionLoading(false)
     }
@@ -892,7 +931,7 @@ const RestaurantDetail: NextPage = () => {
       router.push('/admin/restaurants')
     } catch (err: any) {
       console.error('Failed to delete restaurant:', err)
-      setError(err.message || 'Failed to delete restaurant')
+      setError(err.message || t('restaurant.detail.errors.deleteFailed'))
       setActionLoading(false)
     }
   }
@@ -906,28 +945,28 @@ const RestaurantDetail: NextPage = () => {
   // Quick stats from backend data
   const quickStats = [
     {
-      label: 'Revenue',
+      label: t('restaurant.detail.stats.revenue'),
       value: restaurant?.fin_header?.revenue ? `€${restaurant.fin_header.revenue.toFixed(2)}` : '€0',
       icon: BanknotesIcon,
       color: 'from-[#2BE89A] to-[#4FFFB0]',
       trend: null
     },
     {
-      label: 'Transactions',
+      label: t('restaurant.detail.stats.transactions'),
       value: restaurant?.fin_header?.transactions || 0,
       icon: ShoppingBagIcon,
       color: 'from-[#4ECDC4] to-[#44A08D]',
       trend: null
     },
     {
-      label: 'Average Amount',
+      label: t('restaurant.detail.stats.averageAmount'),
       value: restaurant?.fin_header?.avg_amount ? `€${restaurant.fin_header.avg_amount.toFixed(2)}` : '€0',
       icon: CreditCardIcon,
       color: 'from-[#667EEA] to-[#764BA2]',
       trend: null
     },
     {
-      label: 'Rating',
+      label: t('restaurant.detail.stats.rating'),
       value: restaurant?.fin_header?.rating || 0,
       icon: StarIcon,
       color: 'from-[#FF6B6B] to-[#FF8E53]',
@@ -941,7 +980,7 @@ const RestaurantDetail: NextPage = () => {
           <div className="min-h-screen bg-[#F9FAFB] flex items-center justify-center">
             <div className="text-center">
               <ArrowPathIcon className="mx-auto h-12 w-12 text-gray-400 animate-spin" />
-              <h3 className="mt-4 text-base font-medium text-gray-900">Loading restaurant details...</h3>
+              <h3 className="mt-4 text-base font-medium text-gray-900">{t('restaurant.detail.loading')}</h3>
             </div>
           </div>
         </SmartLayout>
@@ -960,7 +999,7 @@ const RestaurantDetail: NextPage = () => {
                     onClick={() => window.location.reload()}
                     className="ml-auto px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition text-sm"
                 >
-                  Retry
+                  {t('common.retry')}
                 </button>
               </div>
             </div>
@@ -973,7 +1012,7 @@ const RestaurantDetail: NextPage = () => {
     return (
         <SmartLayout>
           <div className="min-h-screen bg-[#F9FAFB] flex items-center justify-center">
-            <div className="text-gray-900">Restaurant not found</div>
+            <div className="text-gray-900">{t('restaurant.detail.notFound')}</div>
           </div>
         </SmartLayout>
     )
@@ -990,17 +1029,17 @@ const RestaurantDetail: NextPage = () => {
                   className="inline-flex items-center px-4 py-2 rounded-lg transition-all text-sm font-medium group bg-gray-50 border border-gray-200 text-gray-600 hover:text-gray-700 hover:bg-gray-100 hover:border-green-300"
               >
                 <ArrowLeftIcon className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
-                Back to Restaurants
+                {t('restaurant.detail.navigation.backToRestaurants')}
               </Link>
 
               {/* Header */}
               <div className="flex justify-between items-center">
                 <div>
                   <h1 className="text-2xl font-semibold text-[#111827] mb-1">
-                    {restaurant.name || 'Restaurant Details'}
+                    {restaurant.name || t('restaurant.detail.title')}
                   </h1>
                   <p className="text-[#6B7280]">
-                    Manage all your restaurant partners and their performance
+                    {t('restaurant.detail.subtitle')}
                   </p>
                 </div>
                 <div className="flex gap-3">
@@ -1016,7 +1055,7 @@ const RestaurantDetail: NextPage = () => {
                         ) : (
                             <ArchiveBoxIcon className="h-5 w-5 mr-2" />
                         )}
-                        Archive
+                        {t('restaurant.detail.actions.archive')}
                       </button>
                   ) : (
                       // Show Restore and Delete buttons for archived restaurants
@@ -1031,7 +1070,7 @@ const RestaurantDetail: NextPage = () => {
                           ) : (
                               <ArrowPathIcon className="h-5 w-5 mr-2" />
                           )}
-                          Restore
+                          {t('restaurant.detail.actions.restore')}
                         </button>
                         <button
                             onClick={() => setShowArchiveDeleteModal(true)}
@@ -1039,17 +1078,17 @@ const RestaurantDetail: NextPage = () => {
                             className="inline-flex items-center px-4 py-2.5 border border-red-300 text-red-600 font-medium rounded-lg hover:bg-red-50 transition-all disabled:opacity-50"
                         >
                           <TrashIcon className="h-5 w-5 mr-2" />
-                          Delete Permanently
+                          {t('restaurant.detail.actions.deletePermanently')}
                         </button>
                       </>
                   )}
 
                   <Link
-                      href={`/restaurants/${id}/edit`}
+                      href={`/admin/restaurants/edit/${id}`}
                       className="inline-flex items-center px-4 py-2.5 bg-gradient-to-r from-green-500 to-green-600 text-white font-medium rounded-lg hover:from-green-600 hover:to-green-700 transition-all shadow-sm"
                   >
                     <PencilIcon className="h-5 w-5 mr-2" />
-                    Edit Restaurant
+                    {t('restaurant.detail.actions.edit')}
                   </Link>
                 </div>
               </div>
@@ -1061,10 +1100,10 @@ const RestaurantDetail: NextPage = () => {
                       <ArchiveBoxIcon className="h-5 w-5 text-yellow-600 mr-2" />
                       <div>
                         <h4 className="text-sm font-medium text-yellow-800">
-                          This restaurant is archived
+                          {t('restaurant.detail.archived.title')}
                         </h4>
                         <p className="text-sm text-yellow-700">
-                          The restaurant is temporarily disabled. Restore it to make it active again.
+                          {t('restaurant.detail.archived.description')}
                         </p>
                       </div>
                     </div>
@@ -1078,7 +1117,7 @@ const RestaurantDetail: NextPage = () => {
                   {restaurant.banner_url && (
                       <img
                           src={restaurant.banner_url}
-                          alt={`${restaurant.name} banner`}
+                          alt={t('restaurant.detail.profile.bannerAlt', { name: restaurant.name })}
                           className="w-full h-full object-cover opacity-90"
                       />
                   )}
@@ -1090,7 +1129,7 @@ const RestaurantDetail: NextPage = () => {
                           : 'bg-yellow-50 text-yellow-700 border border-yellow-200'
                   }`}>
                     <CheckCircleIcon className="h-3.5 w-3.5 mr-1" />
-                    {restaurant.is_active ? 'Active' : 'Archived'}
+                    {restaurant.is_active ? t('common.active') : t('common.archived')}
                   </span>
                   </div>
                 </div>
@@ -1104,7 +1143,7 @@ const RestaurantDetail: NextPage = () => {
                           {restaurant.logo_url ? (
                               <img
                                   src={restaurant.logo_url}
-                                  alt={`${restaurant.name} logo`}
+                                  alt={t('restaurant.detail.profile.logoAlt', { name: restaurant.name })}
                                   className="h-full w-full object-cover"
                               />
                           ) : (
@@ -1115,7 +1154,9 @@ const RestaurantDetail: NextPage = () => {
                         </div>
                       </div>
                       <div className="mb-3">
-                        <h1 className="text-2xl font-bold text-[#111827]">{restaurant.name}</h1>
+                        <h1 className="text-2xl font-bold text-white" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8), 0 0 8px rgba(0,0,0,0.5)'}}>
+                          {restaurant.name}
+                        </h1>
                         <div className="flex items-center mt-1 text-sm text-[#6B7280]">
                           <MapPinIcon className="h-4 w-4 mr-1.5" />
                           {restaurant.city}, {restaurant.country}
@@ -1125,7 +1166,7 @@ const RestaurantDetail: NextPage = () => {
                     <div className="flex items-center space-x-2 mt-3 lg:mt-0">
                     <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs bg-gray-100 border border-gray-200">
                       <BuildingStorefrontIcon className="h-3.5 w-3.5 mr-1 text-gray-600" />
-                      <span className="text-gray-900">{restaurant.tables_info?.length || 0} Tables</span>
+                      <span className="text-gray-900">{t('restaurant.detail.profile.tablesCount', { count: restaurant.tables_info?.length || 0 })}</span>
                     </span>
                     </div>
                   </div>
@@ -1153,14 +1194,13 @@ const RestaurantDetail: NextPage = () => {
                 </div>
               </div>
 
-              {/* Rest of the component remains the same... */}
               {/* Content Grid */}
               <div className="space-y-8">
                 {/* Setup Essentials Section */}
                 <div>
                   <div className="mb-6">
-                    <h2 className="text-2xl font-bold text-[#111827] mb-2">Setup Essentials</h2>
-                    <p className="text-[#6B7280]">Technical configuration and integrations</p>
+                    <h2 className="text-2xl font-bold text-[#111827] mb-2">{t('restaurant.detail.sections.setupEssentials.title')}</h2>
+                    <p className="text-[#6B7280]">{t('restaurant.detail.sections.setupEssentials.description')}</p>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -1169,17 +1209,17 @@ const RestaurantDetail: NextPage = () => {
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-semibold flex items-center text-[#111827]">
                           <MapPinIcon className="h-5 w-5 mr-2 text-green-500" />
-                          Contact Information
+                          {t('restaurant.detail.sections.contactInfo.title')}
                         </h3>
                         <Link
-                            href={`/restaurants/${id}/edit`}
+                            href={`/admin/restaurants/edit/${id}`}
                             className="p-1.5 rounded-lg transition text-gray-600 hover:text-green-600 hover:bg-gray-100">
                           <PencilIcon className="h-4 w-4" />
                         </Link>
                       </div>
                       <div className="space-y-3">
                         <div>
-                          <p className="text-xs uppercase tracking-wider mb-1 text-[#9CA3AF]">Address</p>
+                          <p className="text-xs uppercase tracking-wider mb-1 text-[#9CA3AF]">{t('restaurant.detail.sections.contactInfo.address')}</p>
                           <p className="text-sm leading-snug text-[#111827]">
                             {restaurant.address}<br />
                             {restaurant.postal_code} {restaurant.city}
@@ -1187,7 +1227,7 @@ const RestaurantDetail: NextPage = () => {
                         </div>
                         <div className="flex justify-between items-center py-2 border-t border-gray-200">
                           <div>
-                            <p className="text-xs text-[#9CA3AF]">Email</p>
+                            <p className="text-xs text-[#9CA3AF]">{t('restaurant.detail.sections.contactInfo.email')}</p>
                             <a href={`mailto:${restaurant.contact_email}`} className="text-sm transition text-[#111827] hover:text-green-600">
                               {restaurant.contact_email}
                             </a>
@@ -1195,7 +1235,7 @@ const RestaurantDetail: NextPage = () => {
                         </div>
                         <div className="flex justify-between items-center">
                           <div>
-                            <p className="text-xs text-[#9CA3AF]">Phone</p>
+                            <p className="text-xs text-[#9CA3AF]">{t('restaurant.detail.sections.contactInfo.phone')}</p>
                             <a href={`tel:${restaurant.contact_phone}`} className="text-sm transition text-[#111827] hover:text-green-600">
                               {restaurant.contact_phone}
                             </a>
@@ -1209,7 +1249,7 @@ const RestaurantDetail: NextPage = () => {
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-semibold flex items-center text-[#111827]">
                           <UserGroupIcon className="h-5 w-5 mr-2 text-green-500" />
-                          Restaurant Staff
+                          {t('restaurant.detail.sections.staff.title')}
                           {restaurant.staff_info && restaurant.staff_info.length > 0 && (
                               <span className="ml-2 px-2 py-0.5 text-xs bg-green-100 text-green-600 rounded-full">{restaurant.staff_info.length}</span>
                           )}
@@ -1221,12 +1261,12 @@ const RestaurantDetail: NextPage = () => {
                             <div className="mx-auto h-12 w-12 rounded-full flex items-center justify-center mb-3 bg-gray-100">
                               <UserIcon className="h-6 w-6 text-gray-600" />
                             </div>
-                            <p className="text-sm mb-3 text-[#6B7280]">No staff added</p>
+                            <p className="text-sm mb-3 text-[#6B7280]">{t('restaurant.detail.sections.staff.empty')}</p>
                             <Link
                                 href={`/restaurants/${id}/users`}
                                 className="inline-flex items-center text-sm font-medium text-green-600 hover:text-green-700">
                               <PlusIcon className="h-4 w-4 mr-1" />
-                              Add Staff
+                              {t('restaurant.detail.sections.staff.addStaff')}
                             </Link>
                           </div>
                       ) : (
@@ -1238,8 +1278,8 @@ const RestaurantDetail: NextPage = () => {
                                       {member.first_name?.[0] || ''}{member.last_name?.[0] || ''}
                                     </div>
                                     <div className="ml-3">
-                                      <p className="text-sm font-medium text-[#111827]">{member.full_name || 'Unknown User'}</p>
-                                      <p className="text-xs text-[#6B7280]">{member.restaurant_role || 'User'}</p>
+                                      <p className="text-sm font-medium text-[#111827]">{member.full_name || t('restaurant.detail.sections.staff.unknownUser')}</p>
+                                      <p className="text-xs text-[#6B7280]">{member.restaurant_role || t('restaurant.detail.sections.staff.defaultRole')}</p>
                                     </div>
                                   </div>
                                 </div>
@@ -1247,14 +1287,14 @@ const RestaurantDetail: NextPage = () => {
                             {restaurant.staff_info.length >= 3 && (
                                 <div className="rounded-lg p-3 bg-gray-50 border border-gray-200">
                                   <p className="text-sm text-center text-[#6B7280]">
-                                    +{restaurant.staff_info.length - 1} more staff members
+                                    {t('restaurant.detail.sections.staff.moreMembers', { count: restaurant.staff_info.length - 1 })}
                                   </p>
                                 </div>
                             )}
                             <Link
-                                href={`/restaurants/${id}/users`}
+                                href={`/admin/restaurants/detail/${id}/team`}
                                 className="block w-full text-center py-2.5 text-sm font-medium rounded-lg transition bg-gray-50 border border-gray-200 text-green-600 hover:text-green-700 hover:bg-gray-100">
-                              Manage Staff
+                              {t('restaurant.detail.sections.staff.manage')}
                             </Link>
                           </div>
                       )}
@@ -1265,24 +1305,31 @@ const RestaurantDetail: NextPage = () => {
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-semibold flex items-center text-[#111827]">
                           <CreditCardIcon className="h-5 w-5 mr-2 text-green-500" />
-                          Payment Settings
+                          {t('restaurant.detail.sections.payment.title')}
                         </h3>
-                        <Link
-                            href={`/restaurants/${id}/stripe-transactions`}
-                            className="p-1.5 rounded-lg transition text-gray-600 hover:text-green-600 hover:bg-gray-100">
-                          <ArrowTopRightOnSquareIcon className="h-4 w-4" />
-                        </Link>
+                        {restaurant.stripe_account_id && (
+                            <Link
+                                href={`/restaurants/${id}/stripe-transactions`}
+                                className="p-1.5 rounded-lg transition text-gray-600 hover:text-green-600 hover:bg-gray-100">
+                              <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                            </Link>
+                        )}
                       </div>
 
                       <div className="space-y-3">
                         <div className="rounded-lg p-3 bg-gray-50 border border-gray-200">
-                          <p className="text-xs mb-1 text-[#9CA3AF]">Service Fee</p>
+                          <p className="text-xs mb-1 text-[#9CA3AF]">{t('restaurant.detail.sections.payment.serviceFee')}</p>
                           <p className="text-lg font-bold text-[#111827]">
                             {restaurant.service_fee_type === 'flat' ? '€' : ''}
                             {restaurant.service_fee_amount}
                             {restaurant.service_fee_type === 'percentage' ? '%' : ''}
                           </p>
-                          <p className="text-xs text-[#6B7280]">{restaurant.service_fee_type === 'flat' ? 'Per order' : 'Percentage'}</p>
+                          <p className="text-xs text-[#6B7280]">
+                            {restaurant.service_fee_type === 'flat'
+                                ? t('restaurant.detail.sections.payment.perOrder')
+                                : t('restaurant.detail.sections.payment.percentage')
+                            }
+                          </p>
                         </div>
 
                         {restaurant.stripe_account_id ? (
@@ -1292,22 +1339,32 @@ const RestaurantDetail: NextPage = () => {
                                   <StripeIcon />
                                 </div>
                                 <div>
-                                  <p className="text-sm font-medium text-[#111827]">Stripe Connected</p>
-                                  <p className="text-xs text-[#6B7280]">Active account</p>
+                                  <p className="text-sm font-medium text-[#111827]">{t('restaurant.detail.sections.payment.stripeConnected')}</p>
+                                  <p className="text-xs text-[#6B7280]">{t('restaurant.detail.sections.payment.activeAccount')}</p>
                                 </div>
                               </div>
                               <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-600">
-                            Active
+                            {t('common.active')}
                           </span>
                             </div>
                         ) : (
-                            <div className="rounded-lg p-3 bg-yellow-50 border border-yellow-200">
-                              <div className="flex items-center mb-2">
-                                <CreditCardIcon className="h-4 w-4 mr-2 text-yellow-600" />
-                                <span className="text-sm font-medium text-yellow-700">Stripe Required</span>
-                              </div>
-                              <p className="text-xs text-[#6B7280]">Setup Stripe for payments</p>
-                            </div>
+                            <button
+                                onClick={handleStripeConnect}
+                                disabled={actionLoading}
+                                className="w-full px-4 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-medium rounded-lg hover:from-green-600 hover:to-green-700 flex items-center justify-center text-sm shadow-sm hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {actionLoading ? (
+                                  <>
+                                    <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
+                                    <span>{t('restaurant.detail.sections.payment.connecting')}</span>
+                                  </>
+                              ) : (
+                                  <>
+                                    <span>{t('restaurant.detail.sections.payment.startStripeOnboarding')}</span>
+                                    <ArrowRightIcon className="h-4 w-4 ml-2" />
+                                  </>
+                              )}
+                            </button>
                         )}
                       </div>
                     </div>
@@ -1319,7 +1376,7 @@ const RestaurantDetail: NextPage = () => {
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-semibold flex items-center text-[#111827]">
                           <WifiIcon className="h-5 w-5 mr-2 text-green-500" />
-                          POS Integration
+                          {t('restaurant.detail.sections.pos.title')}
                         </h3>
                         <button
                             onClick={() => setShowPOSModal(true)}
@@ -1333,29 +1390,29 @@ const RestaurantDetail: NextPage = () => {
                             <div className="mx-auto h-12 w-12 rounded-full flex items-center justify-center mb-3 bg-gray-100">
                               <WifiIcon className="h-6 w-6 text-gray-600" />
                             </div>
-                            <p className="text-sm mb-3 text-[#6B7280]">No POS connected</p>
+                            <p className="text-sm mb-3 text-[#6B7280]">{t('restaurant.detail.sections.pos.notConnected')}</p>
                             <button
                                 onClick={() => setShowPOSModal(true)}
                                 className="inline-flex items-center text-sm font-medium text-green-600 hover:text-green-700">
                               <PlusIcon className="h-4 w-4 mr-1" />
-                              Configure POS
+                              {t('restaurant.detail.sections.pos.configure')}
                             </button>
                           </div>
                       ) : (
                           <div className="space-y-3">
                             <div className="rounded-lg p-3 bg-gray-50 border border-gray-200">
                               <div className="flex items-center justify-between mb-2">
-                                <p className="text-sm font-medium text-[#111827]">Connected System</p>
+                                <p className="text-sm font-medium text-[#111827]">{t('restaurant.detail.sections.pos.connectedSystem')}</p>
                                 <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-600">
-                              {restaurant.pos_info.is_active ? 'Active' : 'Inactive'}
+                              {restaurant.pos_info.is_active ? t('common.active') : t('common.inactive')}
                             </span>
                               </div>
                               <p className="text-sm text-[#6B7280]">{restaurant.pos_info.pos_type}</p>
                             </div>
                             <div className="rounded-lg p-3 bg-gray-50 border border-gray-200">
-                              <p className="text-xs mb-1 text-[#9CA3AF]">Status</p>
+                              <p className="text-xs mb-1 text-[#9CA3AF]">{t('restaurant.detail.sections.pos.status')}</p>
                               <p className="text-lg font-bold text-[#111827]">
-                                {restaurant.pos_info.is_connected ? 'Connected' : 'Disconnected'}
+                                {restaurant.pos_info.is_connected ? t('restaurant.detail.sections.pos.connected') : t('restaurant.detail.sections.pos.disconnected')}
                               </p>
                             </div>
                           </div>
@@ -1367,7 +1424,7 @@ const RestaurantDetail: NextPage = () => {
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-semibold flex items-center text-[#111827]">
                           <QrCodeIcon className="h-5 w-5 mr-2 text-green-500" />
-                          Tables & QR Codes
+                          {t('restaurant.detail.sections.tables.title')}
                         </h3>
                         <button
                             onClick={() => setShowTableModal(true)}
@@ -1381,12 +1438,12 @@ const RestaurantDetail: NextPage = () => {
                             <div className="mx-auto h-12 w-12 rounded-full flex items-center justify-center mb-3 bg-gray-100">
                               <TableCellsIcon className="h-6 w-6 text-gray-600" />
                             </div>
-                            <p className="text-sm mb-3 text-[#6B7280]">No tables configured</p>
+                            <p className="text-sm mb-3 text-[#6B7280]">{t('restaurant.detail.sections.tables.notConfigured')}</p>
                             <button
                                 onClick={() => setShowTableModal(true)}
                                 className="inline-flex items-center text-sm font-medium text-green-600 hover:text-green-700">
                               <PlusIcon className="h-4 w-4 mr-1" />
-                              Setup Tables
+                              {t('restaurant.detail.sections.tables.setup')}
                             </button>
                           </div>
                       ) : (
@@ -1394,11 +1451,11 @@ const RestaurantDetail: NextPage = () => {
                             {/* Quick Stats */}
                             <div className="grid grid-cols-2 gap-3">
                               <div className="rounded-lg p-3 bg-gray-50 border border-gray-200">
-                                <p className="text-xs text-[#9CA3AF] mb-1">Total Tables</p>
+                                <p className="text-xs text-[#9CA3AF] mb-1">{t('restaurant.detail.sections.tables.totalTables')}</p>
                                 <p className="text-lg font-bold text-[#111827]">{restaurant.tables_info.length}</p>
                               </div>
                               <div className="rounded-lg p-3 bg-gray-50 border border-gray-200">
-                                <p className="text-xs text-[#9CA3AF] mb-1">Active</p>
+                                <p className="text-xs text-[#9CA3AF] mb-1">{t('common.active')}</p>
                                 <p className="text-lg font-bold text-[#111827]">
                                   {restaurant.tables_info.filter(table => table.is_active).length}
                                 </p>
@@ -1407,7 +1464,7 @@ const RestaurantDetail: NextPage = () => {
 
                             {/* Preview Tables with QR Codes */}
                             <div className="space-y-2">
-                              <p className="text-sm font-medium text-[#111827] mb-2">Table Preview</p>
+                              <p className="text-sm font-medium text-[#111827] mb-2">{t('restaurant.detail.sections.tables.preview')}</p>
                               {restaurant.tables_info.slice(0, 2).map((table) => (
                                   <div key={table.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-200">
                                     <div className="flex items-center space-x-3">
@@ -1416,8 +1473,8 @@ const RestaurantDetail: NextPage = () => {
                                         <QRCodeDisplay url={table.table_link || ''} size={32} />
                                       </div>
                                       <div>
-                                        <p className="text-sm font-medium text-[#111827]">Table {table.table_number}</p>
-                                        <p className="text-xs text-[#6B7280]">{table.table_section || 'No section'}</p>
+                                        <p className="text-sm font-medium text-[#111827]">{t('restaurant.tables.card.tableNumber', { number: table.table_number })}</p>
+                                        <p className="text-xs text-[#6B7280]">{table.table_section || t('restaurant.tables.noSection')}</p>
                                       </div>
                                     </div>
                                     <span className={`px-2 py-1 text-xs rounded-full ${
@@ -1425,13 +1482,13 @@ const RestaurantDetail: NextPage = () => {
                                             ? 'bg-green-100 text-green-700'
                                             : 'bg-gray-100 text-gray-600'
                                     }`}>
-                                      {table.is_active ? 'Active' : 'Inactive'}
+                                      {table.is_active ? t('common.active') : t('common.inactive')}
                                     </span>
                                   </div>
                               ))}
                               {restaurant.tables_info.length > 2 && (
                                   <div className="text-center text-xs text-[#6B7280] py-1">
-                                    +{restaurant.tables_info.length - 2} more tables
+                                    {t('restaurant.detail.sections.tables.moreTables', { count: restaurant.tables_info.length - 2 })}
                                   </div>
                               )}
                             </div>
@@ -1439,7 +1496,7 @@ const RestaurantDetail: NextPage = () => {
                             <button
                                 onClick={() => setShowTableModal(true)}
                                 className="block w-full text-center py-2.5 text-sm font-medium rounded-lg transition bg-gray-50 border border-gray-200 text-green-600 hover:text-green-700 hover:bg-gray-100">
-                              Manage All Tables
+                              {t('restaurant.detail.sections.tables.manageAll')}
                             </button>
                           </div>
                       )}
@@ -1450,8 +1507,8 @@ const RestaurantDetail: NextPage = () => {
                 {/* Operations & Analytics Section */}
                 <div>
                   <div className="mb-6">
-                    <h2 className="text-2xl font-bold text-[#111827] mb-2">Operations & Analytics</h2>
-                    <p className="text-[#6B7280]">Real-time operational data and performance metrics</p>
+                    <h2 className="text-2xl font-bold text-[#111827] mb-2">{t('restaurant.detail.sections.operations.title')}</h2>
+                    <p className="text-[#6B7280]">{t('restaurant.detail.sections.operations.description')}</p>
                   </div>
 
                   {/* Active Tables - Full Width */}
@@ -1459,12 +1516,12 @@ const RestaurantDetail: NextPage = () => {
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="text-xl font-semibold flex items-center text-[#111827]">
                         <TableCellsIcon className="h-6 w-6 mr-3 text-green-500" />
-                        Active Tables
+                        {t('restaurant.detail.sections.operations.activeTables')}
                       </h3>
                       <button
                           onClick={() => setShowTableModal(true)}
                           className="inline-flex items-center text-sm font-medium transition text-green-600 hover:text-green-700">
-                        <span>View All</span>
+                        <span>{t('common.viewAll')}</span>
                         <ArrowRightIcon className="ml-1.5 h-4 w-4" />
                       </button>
                     </div>
@@ -1474,8 +1531,8 @@ const RestaurantDetail: NextPage = () => {
                       <div className="mx-auto h-16 w-16 rounded-full flex items-center justify-center mb-4 bg-white border border-gray-200">
                         <TableCellsIcon className="h-8 w-8 text-gray-600" />
                       </div>
-                      <h4 className="text-lg font-medium mb-2 text-[#111827]">No Active Tables</h4>
-                      <p className="text-[#6B7280]">Active table sessions will appear here in real-time</p>
+                      <h4 className="text-lg font-medium mb-2 text-[#111827]">{t('restaurant.detail.sections.operations.noActiveTables')}</h4>
+                      <p className="text-[#6B7280]">{t('restaurant.detail.sections.operations.activeTablesDescription')}</p>
                     </div>
                   </div>
 
@@ -1484,12 +1541,12 @@ const RestaurantDetail: NextPage = () => {
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="text-xl font-semibold flex items-center text-[#111827]">
                         <ChartBarIcon className="h-6 w-6 mr-3 text-green-500" />
-                        Transaction Analytics
+                        {t('restaurant.detail.sections.operations.transactionAnalytics')}
                       </h3>
                       <Link
                           href={`/restaurants/${id}/transactions`}
                           className="inline-flex items-center text-sm font-medium transition text-green-600 hover:text-green-700">
-                        <span>View All</span>
+                        <span>{t('common.viewAll')}</span>
                         <ArrowTopRightOnSquareIcon className="ml-1.5 h-4 w-4" />
                       </Link>
                     </div>
@@ -1498,7 +1555,7 @@ const RestaurantDetail: NextPage = () => {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                       <div className="rounded-xl p-4 bg-gray-50 border border-gray-200">
                         <div className="flex items-center justify-between mb-2">
-                          <p className="text-sm font-medium text-[#6B7280]">This Month</p>
+                          <p className="text-sm font-medium text-[#6B7280]">{t('restaurant.detail.sections.operations.thisMonth')}</p>
                           <div className="p-2 bg-gradient-to-r from-green-400 to-green-500 rounded-lg">
                             <ShoppingBagIcon className="h-4 w-4 text-white" />
                           </div>
@@ -1512,7 +1569,7 @@ const RestaurantDetail: NextPage = () => {
                       </div>
                       <div className="rounded-xl p-4 bg-gray-50 border border-gray-200">
                         <div className="flex items-center justify-between mb-2">
-                          <p className="text-sm font-medium text-[#6B7280]">Revenue</p>
+                          <p className="text-sm font-medium text-[#6B7280]">{t('restaurant.detail.stats.revenue')}</p>
                           <div className="p-2 bg-gradient-to-r from-[#4ECDC4] to-[#44A08D] rounded-lg">
                             <BanknotesIcon className="h-4 w-4 text-white" />
                           </div>
@@ -1520,11 +1577,11 @@ const RestaurantDetail: NextPage = () => {
                         <p className="text-2xl font-bold text-[#111827]">
                           €{restaurant.fin_header?.revenue?.toFixed(2) || '0.00'}
                         </p>
-                        <p className="text-xs mt-1 text-[#6B7280]">Total revenue</p>
+                        <p className="text-xs mt-1 text-[#6B7280]">{t('restaurant.detail.sections.operations.totalRevenue')}</p>
                       </div>
                       <div className="rounded-xl p-4 bg-gray-50 border border-gray-200">
                         <div className="flex items-center justify-between mb-2">
-                          <p className="text-sm font-medium text-[#6B7280]">Average</p>
+                          <p className="text-sm font-medium text-[#6B7280]">{t('restaurant.detail.sections.operations.average')}</p>
                           <div className="p-2 bg-gradient-to-r from-[#667EEA] to-[#764BA2] rounded-lg">
                             <CreditCardIcon className="h-4 w-4 text-white" />
                           </div>
@@ -1532,7 +1589,7 @@ const RestaurantDetail: NextPage = () => {
                         <p className="text-2xl font-bold text-[#111827]">
                           €{restaurant.fin_header?.avg_amount?.toFixed(2) || '0.00'}
                         </p>
-                        <p className="text-xs mt-1 text-[#6B7280]">Per transaction</p>
+                        <p className="text-xs mt-1 text-[#6B7280]">{t('restaurant.detail.sections.operations.perTransaction')}</p>
                       </div>
                     </div>
 
@@ -1541,8 +1598,8 @@ const RestaurantDetail: NextPage = () => {
                       <div className="mx-auto h-16 w-16 rounded-full flex items-center justify-center mb-4 bg-white border border-gray-200">
                         <ChartBarIcon className="h-8 w-8 text-gray-600" />
                       </div>
-                      <h4 className="text-lg font-medium mb-2 text-[#111827]">No Recent Transactions</h4>
-                      <p className="text-[#6B7280]">Transaction data will appear here once orders start coming in</p>
+                      <h4 className="text-lg font-medium mb-2 text-[#111827]">{t('restaurant.detail.sections.operations.noRecentTransactions')}</h4>
+                      <p className="text-[#6B7280]">{t('restaurant.detail.sections.operations.transactionsDescription')}</p>
                     </div>
                   </div>
                 </div>
@@ -1580,8 +1637,8 @@ const RestaurantDetail: NextPage = () => {
               >
                 <div className="flex items-center justify-between mb-8">
                   <div>
-                    <h3 className="text-2xl font-bold text-gray-900 mb-2">POS Integration</h3>
-                    <p className="text-gray-600">Configure POS system for {restaurant?.name}</p>
+                    <h3 className="text-2xl font-bold text-gray-900 mb-2">{t('restaurant.detail.pos.modal.title')}</h3>
+                    <p className="text-gray-600">{t('restaurant.detail.pos.modal.subtitle', { name: restaurant?.name })}</p>
                   </div>
                   <button
                       onClick={() => setShowPOSModal(false)}
@@ -1595,7 +1652,7 @@ const RestaurantDetail: NextPage = () => {
                   {/* POS System */}
                   <div>
                     <label className="block text-sm font-medium text-gray-600 mb-2">
-                      POS System <span className="text-red-500">*</span>
+                      {t('restaurant.detail.pos.modal.fields.posSystem')} <span className="text-red-500">*</span>
                     </label>
                     <select
                         className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
@@ -1603,11 +1660,11 @@ const RestaurantDetail: NextPage = () => {
                         onChange={(e) => setPosFormData({...posFormData, posSystem: e.target.value})}
                         required
                     >
-                      <option value="">Select POS System</option>
+                      <option value="">{t('restaurant.detail.pos.modal.placeholders.selectPosSystem')}</option>
                       <option value="untill">Untill</option>
                       <option value="lightspeed">Lightspeed</option>
                       <option value="mpluskassa">M+ Kassa</option>
-                      <option value="other">Other</option>
+                      <option value="other">{t('restaurant.detail.pos.modal.options.other')}</option>
                     </select>
                   </div>
 
@@ -1615,12 +1672,12 @@ const RestaurantDetail: NextPage = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-2">
-                        Username <span className="text-red-500">*</span>
+                        {t('restaurant.detail.pos.modal.fields.username')} <span className="text-red-500">*</span>
                       </label>
                       <input
                           type="text"
                           className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                          placeholder="Enter username"
+                          placeholder={t('restaurant.detail.pos.modal.placeholders.username')}
                           value={posFormData.username}
                           onChange={(e) => setPosFormData({...posFormData, username: e.target.value})}
                           required
@@ -1628,12 +1685,12 @@ const RestaurantDetail: NextPage = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-2">
-                        Password <span className="text-red-500">*</span>
+                        {t('restaurant.detail.pos.modal.fields.password')} <span className="text-red-500">*</span>
                       </label>
                       <input
                           type="password"
                           className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                          placeholder="Enter password"
+                          placeholder={t('restaurant.detail.pos.modal.placeholders.password')}
                           value={posFormData.password}
                           onChange={(e) => setPosFormData({...posFormData, password: e.target.value})}
                           required
@@ -1644,7 +1701,7 @@ const RestaurantDetail: NextPage = () => {
                   {/* API URL */}
                   <div>
                     <label className="block text-sm font-medium text-gray-600 mb-2">
-                      API URL <span className="text-red-500">*</span>
+                      {t('restaurant.detail.pos.modal.fields.apiUrl')} <span className="text-red-500">*</span>
                     </label>
                     <input
                         type="text"
@@ -1658,16 +1715,16 @@ const RestaurantDetail: NextPage = () => {
 
                   {/* Environment */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-2">Environment</label>
+                    <label className="block text-sm font-medium text-gray-600 mb-2">{t('restaurant.detail.pos.modal.fields.environment')}</label>
                     <select
                         className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                         value={posFormData.environment}
                         onChange={(e) => setPosFormData({...posFormData, environment: e.target.value})}
                     >
-                      <option value="production">Production</option>
-                      <option value="staging">Staging</option>
-                      <option value="development">Development</option>
-                      <option value="test">Test</option>
+                      <option value="production">{t('restaurant.detail.pos.modal.environments.production')}</option>
+                      <option value="staging">{t('restaurant.detail.pos.modal.environments.staging')}</option>
+                      <option value="development">{t('restaurant.detail.pos.modal.environments.development')}</option>
+                      <option value="test">{t('restaurant.detail.pos.modal.environments.test')}</option>
                     </select>
                   </div>
 
@@ -1683,8 +1740,8 @@ const RestaurantDetail: NextPage = () => {
                       />
                     </div>
                     <div className="ml-3">
-                      <label htmlFor="is-active" className="text-sm font-medium text-gray-900">Activate Integration</label>
-                      <p className="text-sm text-gray-600">Enable POS integration for {restaurant?.name}</p>
+                      <label htmlFor="is-active" className="text-sm font-medium text-gray-900">{t('restaurant.detail.pos.modal.fields.activateIntegration')}</label>
+                      <p className="text-sm text-gray-600">{t('restaurant.detail.pos.modal.fields.activateIntegrationDescription', { name: restaurant?.name })}</p>
                     </div>
                   </div>
 
@@ -1692,11 +1749,11 @@ const RestaurantDetail: NextPage = () => {
                   <button
                       onClick={() => {
                         console.log('Testing POS connection:', posFormData)
-                        alert('Testing connection...')
+                        alert(t('restaurant.detail.pos.modal.testingConnection'))
                       }}
                       className="w-full px-6 py-3 bg-gradient-to-r from-[#2BE89A] to-[#4FFFB0] text-black font-semibold rounded-lg hover:opacity-90 transition-all shadow-lg"
                   >
-                    Test Connection
+                    {t('restaurant.detail.pos.modal.actions.testConnection')}
                   </button>
                 </div>
               </div>

@@ -1154,7 +1154,9 @@ const RestaurantDetail: NextPage = () => {
                         </div>
                       </div>
                       <div className="mb-3">
-                        <h1 className="text-2xl font-bold text-[#111827]">{restaurant.name}</h1>
+                        <h1 className="text-2xl font-bold text-white" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8), 0 0 8px rgba(0,0,0,0.5)'}}>
+                          {restaurant.name}
+                        </h1>
                         <div className="flex items-center mt-1 text-sm text-[#6B7280]">
                           <MapPinIcon className="h-4 w-4 mr-1.5" />
                           {restaurant.city}, {restaurant.country}

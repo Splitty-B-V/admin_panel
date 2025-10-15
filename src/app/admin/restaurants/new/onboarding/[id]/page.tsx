@@ -344,8 +344,7 @@ export default function SuperAdminOnboardingPage() {
         username: '',
         password: '',
         base_url: '',
-        environment: 'production',
-        is_active: true
+        port: '' // For MPLUS handling
     })
 
     const [qrStandData, setQrStandData] = useState({
@@ -393,6 +392,13 @@ export default function SuperAdminOnboardingPage() {
     // Telegram states
     const [telegramCreating, setTelegramCreating] = useState(false)
     const [telegramGroupLink, setTelegramGroupLink] = useState<string>('')
+
+    // POS Test states
+    const [posTestResult, setPosTestResult] = useState<{
+        success: boolean
+        message: string
+        show: boolean
+    }>({ success: false, message: '', show: false })
 
     // Field validation functions
     const validatePersonnelStep = () => {
@@ -457,9 +463,18 @@ export default function SuperAdminOnboardingPage() {
             errors.password = t('onboarding.pos.validation.passwordRequired')
             hasErrors = true
         }
-        if (!posData.base_url.trim()) {
-            errors.base_url = t('onboarding.pos.validation.apiUrlRequired')
-            hasErrors = true
+
+        // Check base_url based on POS type
+        if (posData.pos_type === 'mpluskassa') {
+            if (!posData.port?.trim()) {
+                errors.base_url = t('onboarding.pos.validation.portRequired')
+                hasErrors = true
+            }
+        } else {
+            if (!posData.base_url.trim()) {
+                errors.base_url = t('onboarding.pos.validation.apiUrlRequired')
+                hasErrors = true
+            }
         }
 
         setPosErrors(errors)
@@ -548,8 +563,7 @@ export default function SuperAdminOnboardingPage() {
                 username: '',
                 password: '',
                 base_url: '',
-                environment: 'production',
-                is_active: true
+                port: ''
             })
             setStripeData({ connected: false })
             setQrStandData({
@@ -633,8 +647,7 @@ export default function SuperAdminOnboardingPage() {
                 username: '',
                 password: '',
                 base_url: '',
-                environment: 'production',
-                is_active: true
+                port: ''
             })
             setStripeData({ connected: false })
             setQrStandData({
@@ -750,7 +763,16 @@ export default function SuperAdminOnboardingPage() {
                 case 3:
                     isValid = validatePOSStep()
                     if (isValid) {
-                        await completePOSStep(restaurantId, posData)
+                        // Prepare POS data for backend
+                        const posPayload = {
+                            pos_type: posData.pos_type,
+                            username: posData.username,
+                            password: posData.password,
+                            base_url: posData.pos_type === 'mpluskassa'
+                                ? `https://api.mpluskassa.nl:${posData.port}`
+                                : posData.base_url
+                        }
+                        await completePOSStep(restaurantId, posPayload)
                     }
                     break
                 case 4:
@@ -1410,7 +1432,13 @@ export default function SuperAdminOnboardingPage() {
                                         <select
                                             value={posData.pos_type}
                                             onChange={(e) => {
-                                                setPosData({...posData, pos_type: e.target.value})
+                                                const newPosType = e.target.value
+                                                setPosData({
+                                                    ...posData,
+                                                    pos_type: newPosType,
+                                                    base_url: newPosType === 'mpluskassa' ? '' : posData.base_url,
+                                                    port: newPosType === 'mpluskassa' ? '' : undefined
+                                                })
                                                 setPosErrors({...posErrors, pos_type: ''})
                                             }}
                                             className={`w-full px-3 py-2.5 bg-white border rounded-md text-gray-900 text-sm focus:outline-none transition-colors ${
@@ -1487,24 +1515,64 @@ export default function SuperAdminOnboardingPage() {
                                         </div>
                                     </div>
 
+                                    {/* API URL - Dynamic based on POS type */}
                                     <div>
                                         <label className="block text-xs font-medium text-gray-700 mb-2 uppercase tracking-wider">
-                                            {t('onboarding.pos.form.apiUrl')} <span className="text-red-500">*</span>
+                                            {posData.pos_type === 'mpluskassa'
+                                                ? t('onboarding.pos.form.port')
+                                                : t('onboarding.pos.form.apiUrl')
+                                            } <span className="text-red-500">*</span>
                                         </label>
-                                        <input
-                                            type="text"
-                                            placeholder="https://api.example.com"
-                                            value={posData.base_url}
-                                            onChange={(e) => {
-                                                setPosData({...posData, base_url: e.target.value})
-                                                setPosErrors({...posErrors, base_url: ''})
-                                            }}
-                                            className={`w-full px-3 py-2.5 bg-white border rounded-md text-gray-900 placeholder-gray-400 text-sm focus:outline-none transition-colors ${
-                                                posErrors.base_url
-                                                    ? 'border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500'
-                                                    : 'border-gray-200 focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A]'
-                                            }`}
-                                        />
+
+                                        {posData.pos_type === 'mpluskassa' ? (
+                                            <div className="space-y-2">
+                                                <div className="relative">
+                                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                        <span className="text-gray-500 text-sm">https://api.mpluskassa.nl:</span>
+                                                    </div>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="34562"
+                                                        value={posData.port || ''}
+                                                        onChange={(e) => {
+                                                            const port = e.target.value
+                                                            setPosData({
+                                                                ...posData,
+                                                                port: port,
+                                                                base_url: port ? `https://api.mpluskassa.nl:${port}` : ''
+                                                            })
+                                                            setPosErrors({...posErrors, base_url: ''})
+                                                        }}
+                                                        className={`w-full pl-48 pr-3 py-2.5 bg-white border rounded-md text-gray-900 placeholder-gray-400 text-sm focus:outline-none transition-colors ${
+                                                            posErrors.base_url
+                                                                ? 'border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500'
+                                                                : 'border-gray-200 focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A]'
+                                                        }`}
+                                                    />
+                                                </div>
+                                                {posData.port && (
+                                                    <p className="text-xs text-gray-600">
+                                                        Full URL: https://api.mpluskassa.nl:{posData.port}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <input
+                                                type="text"
+                                                placeholder="https://api.example.com"
+                                                value={posData.base_url}
+                                                onChange={(e) => {
+                                                    setPosData({...posData, base_url: e.target.value})
+                                                    setPosErrors({...posErrors, base_url: ''})
+                                                }}
+                                                className={`w-full px-3 py-2.5 bg-white border rounded-md text-gray-900 placeholder-gray-400 text-sm focus:outline-none transition-colors ${
+                                                    posErrors.base_url
+                                                        ? 'border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500'
+                                                        : 'border-gray-200 focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A]'
+                                                }`}
+                                            />
+                                        )}
+
                                         {posErrors.base_url && (
                                             <div className="mt-1 flex items-center">
                                                 <ExclamationTriangleIcon className="h-4 w-4 text-red-500 mr-1" />
@@ -1513,51 +1581,134 @@ export default function SuperAdminOnboardingPage() {
                                         )}
                                     </div>
 
-                                    <div>
-                                        <label className="block text-xs font-medium text-gray-700 mb-2 uppercase tracking-wider">
-                                            {t('onboarding.pos.form.environment')}
-                                        </label>
-                                        <select
-                                            value={posData.environment}
-                                            onChange={(e) => setPosData({...posData, environment: e.target.value as any})}
-                                            className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-md text-gray-900 text-sm focus:outline-none focus:border-[#2BE89A] focus:ring-1 focus:ring-[#2BE89A] transition-colors"
-                                        >
-                                            <option value="production">{t('onboarding.pos.environments.production')}</option>
-                                            <option value="staging">{t('onboarding.pos.environments.staging')}</option>
-                                            <option value="development">{t('onboarding.pos.environments.development')}</option>
-                                            <option value="test">{t('onboarding.pos.environments.test')}</option>
-                                        </select>
-                                    </div>
-
+                                    {/* Test Connection Button */}
                                     <div className="pt-3 border-t border-gray-200">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex-1">
-                                                <label htmlFor="is-active" className="text-sm font-medium text-gray-900 cursor-pointer">
-                                                    {t('onboarding.pos.form.activateIntegration')}
-                                                </label>
-                                                <p className="text-xs text-gray-500 mt-1">{t('onboarding.pos.form.activateDescription', { restaurant: restaurant?.name })}</p>
+                                        <button
+                                            onClick={async () => {
+                                                // Clear errors first
+                                                setPosErrors({ pos_type: '', username: '', password: '', base_url: '' })
+                                                setPosTestResult({ success: false, message: '', show: false })
+
+                                                // Validate required fields
+                                                if (!posData.pos_type || !posData.username || !posData.password) {
+                                                    setPosTestResult({
+                                                        success: false,
+                                                        message: t('onboarding.pos.validation.allFieldsRequired'),
+                                                        show: true
+                                                    })
+                                                    return
+                                                }
+
+                                                const fullBaseUrl = posData.pos_type === 'mpluskassa' && posData.port
+                                                    ? `https://api.mpluskassa.nl:${posData.port}`
+                                                    : posData.base_url
+
+                                                if (!fullBaseUrl) {
+                                                    setPosTestResult({
+                                                        success: false,
+                                                        message: t('onboarding.pos.validation.apiUrlRequired'),
+                                                        show: true
+                                                    })
+                                                    return
+                                                }
+
+                                                try {
+                                                    setSaving(true)
+
+                                                    const testData = {
+                                                        pos_type: posData.pos_type,
+                                                        username: posData.username,
+                                                        password: posData.password,
+                                                        base_url: fullBaseUrl
+                                                    }
+
+                                                    const response = await fetch(`${API_BASE_URL}/super_admin/restaurants/${restaurantId}/pos/test`, {
+                                                        method: 'POST',
+                                                        headers: getAuthHeaders(),
+                                                        body: JSON.stringify(testData)
+                                                    })
+
+                                                    if (response.status === 401) {
+                                                        localStorage.removeItem('auth_token')
+                                                        sessionStorage.removeItem('auth_token')
+                                                        window.location.href = '/login'
+                                                        return
+                                                    }
+
+                                                    const result = await response.json()
+
+                                                    if (response.ok && result.status_code === 200) {
+                                                        setPosTestResult({
+                                                            success: true,
+                                                            message: result.message || t('onboarding.pos.test.success'),
+                                                            show: true
+                                                        })
+                                                    } else {
+                                                        setPosTestResult({
+                                                            success: false,
+                                                            message: result.message || t('onboarding.pos.test.failed'),
+                                                            show: true
+                                                        })
+                                                    }
+                                                } catch (err: any) {
+                                                    setPosTestResult({
+                                                        success: false,
+                                                        message: err.message || t('onboarding.pos.test.failed'),
+                                                        show: true
+                                                    })
+                                                } finally {
+                                                    setSaving(false)
+                                                }
+                                            }}
+                                            disabled={saving || !posData.pos_type || !posData.username || !posData.password || (!posData.base_url && (!posData.port || posData.pos_type !== 'mpluskassa'))}
+                                            className="w-full px-4 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-medium rounded-lg hover:from-green-600 hover:to-green-700 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            {saving ? (
+                                                <>
+                                                    <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin inline" />
+                                                    {t('onboarding.pos.test.testing')}
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <WifiIcon className="h-4 w-4 mr-2 inline" />
+                                                    {t('onboarding.pos.test.button')}
+                                                </>
+                                            )}
+                                        </button>
+
+                                        {/* Test Result Display */}
+                                        {posTestResult.show && (
+                                            <div className={`mt-4 p-4 rounded-lg border ${
+                                                posTestResult.success
+                                                    ? 'bg-green-50 border-green-200'
+                                                    : 'bg-red-50 border-red-200'
+                                            }`}>
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center">
+                                                        {posTestResult.success ? (
+                                                            <CheckCircleIcon className="h-5 w-5 text-green-500 mr-2" />
+                                                        ) : (
+                                                            <ExclamationTriangleIcon className="h-5 w-5 text-red-500 mr-2" />
+                                                        )}
+                                                        <p className={`text-sm font-medium ${
+                                                            posTestResult.success ? 'text-green-800' : 'text-red-800'
+                                                        }`}>
+                                                            {posTestResult.message}
+                                                        </p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => setPosTestResult({ success: false, message: '', show: false })}
+                                                        className={`p-1 rounded-md ${
+                                                            posTestResult.success
+                                                                ? 'text-green-500 hover:text-green-700 hover:bg-green-100'
+                                                                : 'text-red-500 hover:text-red-700 hover:bg-red-100'
+                                                        } transition`}
+                                                    >
+                                                        <XMarkIcon className="h-4 w-4" />
+                                                    </button>
+                                                </div>
                                             </div>
-                                            <button
-                                                type="button"
-                                                role="switch"
-                                                aria-checked={posData.is_active}
-                                                onClick={() => setPosData({...posData, is_active: !posData.is_active})}
-                                                className={`
-                          relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent 
-                          transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#2BE89A] focus:ring-offset-2
-                          ${posData.is_active ? 'bg-[#2BE89A]' : 'bg-gray-200'}
-                        `}
-                                            >
-                                                <span className="sr-only">{t('onboarding.pos.form.activateIntegration')}</span>
-                                                <span
-                                                    className={`
-                            pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 
-                            transition duration-200 ease-in-out
-                            ${posData.is_active ? 'translate-x-5' : 'translate-x-0'}
-                          `}
-                                                />
-                                            </button>
-                                        </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>

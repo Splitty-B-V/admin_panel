@@ -105,6 +105,18 @@ interface QRTable {
   updated_at: string | null;
 }
 
+interface POSTestResult {
+  success: boolean;
+  message: string;
+}
+
+interface POSConfigResponse {
+  pos_type: string;
+  username: string;
+  password: string;
+  base_url: string;
+}
+
 // Helper function to get auth headers
 function getAuthHeaders() {
   const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token')
@@ -131,6 +143,64 @@ async function getRestaurantDetail(restaurantId: number): Promise<RestaurantDeta
     return Promise.reject(new Error('Unauthorized'))
   }
   if (!response.ok) throw new Error('Failed to fetch restaurant detail')
+  return response.json()
+}
+
+async function testPOSConnection(restaurantId: number, posData: {
+  pos_type: string;
+  username: string;
+  password: string;
+  base_url: string;
+}): Promise<POSTestResult> {
+  const response = await fetch(`${API_BASE_URL}/super_admin/restaurants/${restaurantId}/pos/test`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(posData)
+  })
+
+  if (response.status === 401) {
+    localStorage.removeItem('auth_token')
+    sessionStorage.removeItem('auth_token')
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login'
+    }
+    return Promise.reject(new Error('Unauthorized'))
+  }
+
+  const result = await response.json()
+
+  return {
+    success: response.ok && result.status_code === 200,
+    message: result.message || 'Connection test completed'
+  }
+}
+
+async function configurePOSConnection(restaurantId: number, posData: {
+  pos_type: string;
+  username: string;
+  password: string;
+  base_url: string;
+}): Promise<POSConfigResponse> {
+  const response = await fetch(`${API_BASE_URL}/super_admin/restaurants/${restaurantId}/pos`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(posData)
+  })
+
+  if (response.status === 401) {
+    localStorage.removeItem('auth_token')
+    sessionStorage.removeItem('auth_token')
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login'
+    }
+    return Promise.reject(new Error('Unauthorized'))
+  }
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(errorData.detail || 'Failed to configure POS connection')
+  }
+
   return response.json()
 }
 
@@ -798,15 +868,16 @@ const RestaurantDetail: NextPage = () => {
   const [showPOSModal, setShowPOSModal] = useState(false)
   const [showTableModal, setShowTableModal] = useState(false)
 
-  // POS form data
+  // POS form data - Updated to match backend schema
   const [posFormData, setPosFormData] = useState({
-    posSystem: '',
+    pos_type: '',
     username: '',
     password: '',
-    apiUrl: '',
-    environment: 'production',
-    isActive: true
+    base_url: '',
+    port: '' // For MPLUS port handling
   })
+  const [posTestResult, setPosTestResult] = useState<POSTestResult | null>(null)
+  const [posLoading, setPosLoading] = useState(false)
 
   useEffect(() => {
     document.title = t('restaurant.detail.pageTitle')
@@ -818,6 +889,41 @@ const RestaurantDetail: NextPage = () => {
       loadRestaurantData()
     }
   }, [id])
+
+  // Load existing POS configuration when modal opens
+  useEffect(() => {
+    if (showPOSModal && restaurant?.pos_info) {
+      const posInfo = restaurant.pos_info
+      setPosFormData({
+        pos_type: posInfo.pos_type || '',
+        username: posInfo.username || '',
+        password: posInfo.password || '',
+        base_url: posInfo.base_url || '',
+        port: '' // Extract port if it's MPLUS
+      })
+
+      // If it's MPLUS, extract port from base_url
+      if (posInfo.pos_type === 'mpluskassa' && posInfo.base_url) {
+        const match = posInfo.base_url.match(/https:\/\/api\.mpluskassa\.nl:(\d+)/)
+        if (match) {
+          setPosFormData(prev => ({
+            ...prev,
+            port: match[1]
+          }))
+        }
+      }
+    } else if (showPOSModal) {
+      // Reset form for new configuration
+      setPosFormData({
+        pos_type: '',
+        username: '',
+        password: '',
+        base_url: '',
+        port: ''
+      })
+    }
+    setPosTestResult(null)
+  }, [showPOSModal, restaurant])
 
   useEffect(() => {
     // Check URL parameters for Stripe callback
@@ -860,6 +966,115 @@ const RestaurantDetail: NextPage = () => {
       document.body.style.overflow = 'unset'
     }
   }, [showPOSModal, showArchiveDeleteModal, showTableModal])
+
+  // Helper function to get the full base_url for API calls
+  const getFullBaseUrl = () => {
+    if (posFormData.pos_type === 'mpluskassa') {
+      return `https://api.mpluskassa.nl:${posFormData.port}`
+    }
+    return posFormData.base_url
+  }
+
+  // Helper function to update POS form data with proper URL handling
+  const updatePosFormData = (field: string, value: string) => {
+    if (field === 'pos_type') {
+      // Reset base_url and port when changing POS type
+      setPosFormData(prev => ({
+        ...prev,
+        pos_type: value,
+        base_url: value === 'mpluskassa' ? '' : prev.base_url,
+        port: value === 'mpluskassa' ? prev.port : ''
+      }))
+    } else if (field === 'port' && posFormData.pos_type === 'mpluskassa') {
+      setPosFormData(prev => ({
+        ...prev,
+        port: value,
+        base_url: value ? `https://api.mpluskassa.nl:${value}` : ''
+      }))
+    } else {
+      setPosFormData(prev => ({
+        ...prev,
+        [field]: value
+      }))
+    }
+  }
+
+  const handleTestPOSConnection = async () => {
+    try {
+      setPosLoading(true)
+      setPosTestResult(null)
+
+      const fullBaseUrl = getFullBaseUrl()
+
+      if (!posFormData.pos_type || !posFormData.username || !posFormData.password || !fullBaseUrl) {
+        setPosTestResult({
+          success: false,
+          message: t('restaurant.detail.pos.modal.validation.allFieldsRequired')
+        })
+        return
+      }
+
+      const testData = {
+        pos_type: posFormData.pos_type,
+        username: posFormData.username,
+        password: posFormData.password,
+        base_url: fullBaseUrl
+      }
+
+      const result = await testPOSConnection(parseInt(id), testData)
+      setPosTestResult(result)
+    } catch (err: any) {
+      setPosTestResult({
+        success: false,
+        message: err.message || t('restaurant.detail.pos.modal.errors.testFailed')
+      })
+    } finally {
+      setPosLoading(false)
+    }
+  }
+
+  const handleConfigurePOS = async () => {
+    try {
+      setPosLoading(true)
+
+      const fullBaseUrl = getFullBaseUrl()
+
+      if (!posFormData.pos_type || !posFormData.username || !posFormData.password || !fullBaseUrl) {
+        setPosTestResult({
+          success: false,
+          message: t('restaurant.detail.pos.modal.validation.allFieldsRequired')
+        })
+        return
+      }
+
+      const configData = {
+        pos_type: posFormData.pos_type,
+        username: posFormData.username,
+        password: posFormData.password,
+        base_url: fullBaseUrl
+      }
+
+      await configurePOSConnection(parseInt(id), configData)
+
+      // Refresh restaurant data to show updated POS info
+      await loadRestaurantData()
+
+      // Close modal and show success
+      setShowPOSModal(false)
+      setPosTestResult({
+        success: true,
+        message: t('restaurant.detail.pos.modal.success.configured')
+      })
+
+    } catch (err: any) {
+      setPosTestResult({
+        success: false,
+        message: err.message || t('restaurant.detail.pos.modal.errors.configurationFailed')
+      })
+    } finally {
+      setPosLoading(false)
+    }
+  }
 
   const handleStripeConnect = async () => {
     try {
@@ -1385,7 +1600,7 @@ const RestaurantDetail: NextPage = () => {
                         </button>
                       </div>
 
-                      {!restaurant.pos_info || !restaurant.pos_info.is_connected ? (
+                      {!restaurant.pos_info ? (
                           <div className="text-center py-6">
                             <div className="mx-auto h-12 w-12 rounded-full flex items-center justify-center mb-3 bg-gray-100">
                               <WifiIcon className="h-6 w-6 text-gray-600" />
@@ -1403,17 +1618,15 @@ const RestaurantDetail: NextPage = () => {
                             <div className="rounded-lg p-3 bg-gray-50 border border-gray-200">
                               <div className="flex items-center justify-between mb-2">
                                 <p className="text-sm font-medium text-[#111827]">{t('restaurant.detail.sections.pos.connectedSystem')}</p>
-                                <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-600">
-                              {restaurant.pos_info.is_active ? t('common.active') : t('common.inactive')}
+                                <span className={`px-2 py-1 text-xs rounded-full ${
+                                    restaurant.pos_info.is_connected
+                                        ? 'bg-green-100 text-green-600'
+                                        : 'bg-red-100 text-red-600'
+                                }`}>
+                              {restaurant.pos_info.is_connected ? t('restaurant.detail.sections.pos.connected') : t('restaurant.detail.sections.pos.disconnected')}
                             </span>
                               </div>
-                              <p className="text-sm text-[#6B7280]">{restaurant.pos_info.pos_type}</p>
-                            </div>
-                            <div className="rounded-lg p-3 bg-gray-50 border border-gray-200">
-                              <p className="text-xs mb-1 text-[#9CA3AF]">{t('restaurant.detail.sections.pos.status')}</p>
-                              <p className="text-lg font-bold text-[#111827]">
-                                {restaurant.pos_info.is_connected ? t('restaurant.detail.sections.pos.connected') : t('restaurant.detail.sections.pos.disconnected')}
-                              </p>
+                              <p className="text-sm text-[#6B7280] capitalize">{restaurant.pos_info.pos_type}</p>
                             </div>
                           </div>
                       )}
@@ -1625,7 +1838,7 @@ const RestaurantDetail: NextPage = () => {
             isArchive={restaurant.is_active}
         />
 
-        {/* POS Integration Modal */}
+        {/* POS Integration Modal - Enhanced with working logic */}
         {showPOSModal && (
             <div
                 className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50"
@@ -1656,8 +1869,8 @@ const RestaurantDetail: NextPage = () => {
                     </label>
                     <select
                         className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                        value={posFormData.posSystem}
-                        onChange={(e) => setPosFormData({...posFormData, posSystem: e.target.value})}
+                        value={posFormData.pos_type}
+                        onChange={(e) => updatePosFormData('pos_type', e.target.value)}
                         required
                     >
                       <option value="">{t('restaurant.detail.pos.modal.placeholders.selectPosSystem')}</option>
@@ -1679,7 +1892,7 @@ const RestaurantDetail: NextPage = () => {
                           className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                           placeholder={t('restaurant.detail.pos.modal.placeholders.username')}
                           value={posFormData.username}
-                          onChange={(e) => setPosFormData({...posFormData, username: e.target.value})}
+                          onChange={(e) => updatePosFormData('username', e.target.value)}
                           required
                       />
                     </div>
@@ -1692,69 +1905,124 @@ const RestaurantDetail: NextPage = () => {
                           className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                           placeholder={t('restaurant.detail.pos.modal.placeholders.password')}
                           value={posFormData.password}
-                          onChange={(e) => setPosFormData({...posFormData, password: e.target.value})}
+                          onChange={(e) => updatePosFormData('password', e.target.value)}
                           required
                       />
                     </div>
                   </div>
 
-                  {/* API URL */}
+                  {/* API URL - Dynamic based on POS type */}
                   <div>
                     <label className="block text-sm font-medium text-gray-600 mb-2">
-                      {t('restaurant.detail.pos.modal.fields.apiUrl')} <span className="text-red-500">*</span>
+                      {posFormData.pos_type === 'mpluskassa'
+                          ? t('restaurant.detail.pos.modal.fields.port')
+                          : t('restaurant.detail.pos.modal.fields.apiUrl')
+                      } <span className="text-red-500">*</span>
                     </label>
-                    <input
-                        type="text"
-                        placeholder="https://api.example.com"
-                        className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                        value={posFormData.apiUrl}
-                        onChange={(e) => setPosFormData({...posFormData, apiUrl: e.target.value})}
-                        required
-                    />
+
+                    {posFormData.pos_type === 'mpluskassa' ? (
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <span className="text-gray-500 text-sm">https://api.mpluskassa.nl:</span>
+                          </div>
+                          <input
+                              type="text"
+                              placeholder="34562"
+                              className="w-full pl-48 pr-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                              value={posFormData.port}
+                              onChange={(e) => updatePosFormData('port', e.target.value)}
+                              required
+                          />
+                        </div>
+                    ) : (
+                        <input
+                            type="text"
+                            placeholder="https://api.example.com"
+                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                            value={posFormData.base_url}
+                            onChange={(e) => updatePosFormData('base_url', e.target.value)}
+                            required
+                        />
+                    )}
+
+                    {posFormData.pos_type === 'mpluskassa' && posFormData.port && (
+                        <p className="mt-2 text-sm text-gray-600">
+                          Full URL: https://api.mpluskassa.nl:{posFormData.port}
+                        </p>
+                    )}
                   </div>
 
-                  {/* Environment */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-2">{t('restaurant.detail.pos.modal.fields.environment')}</label>
-                    <select
-                        className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                        value={posFormData.environment}
-                        onChange={(e) => setPosFormData({...posFormData, environment: e.target.value})}
+                  {/* Test Result Display */}
+                  {posTestResult && (
+                      <div className={`p-4 rounded-lg border ${
+                          posTestResult.success
+                              ? 'bg-green-50 border-green-200'
+                              : 'bg-red-50 border-red-200'
+                      }`}>
+                        <div className="flex items-center">
+                          {posTestResult.success ? (
+                              <CheckCircleIcon className="h-5 w-5 text-green-500 mr-2" />
+                          ) : (
+                              <ExclamationTriangleIcon className="h-5 w-5 text-red-500 mr-2" />
+                          )}
+                          <p className={`text-sm font-medium ${
+                              posTestResult.success ? 'text-green-800' : 'text-red-800'
+                          }`}>
+                            {posTestResult.message}
+                          </p>
+                        </div>
+                      </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3">
+                    {/* Test Connection Button */}
+                    <button
+                        onClick={handleTestPOSConnection}
+                        disabled={posLoading}
+                        className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-lg hover:from-green-600 hover:to-green-700 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <option value="production">{t('restaurant.detail.pos.modal.environments.production')}</option>
-                      <option value="staging">{t('restaurant.detail.pos.modal.environments.staging')}</option>
-                      <option value="development">{t('restaurant.detail.pos.modal.environments.development')}</option>
-                      <option value="test">{t('restaurant.detail.pos.modal.environments.test')}</option>
-                    </select>
+                      {posLoading ? (
+                          <>
+                            <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin inline" />
+                            {t('restaurant.detail.pos.modal.actions.testing')}
+                          </>
+                      ) : (
+                          t('restaurant.detail.pos.modal.actions.testConnection')
+                      )}
+                    </button>
+
+                    {/* Save Button */}
+                    <button
+                        onClick={handleConfigurePOS}
+                        disabled={posLoading}
+                        className="flex-1 px-6 py-3 bg-gradient-to-r from-[#2BE89A] to-[#4FFFB0] text-black font-semibold rounded-lg hover:opacity-90 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {posLoading ? (
+                          <>
+                            <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin inline" />
+                            {t('restaurant.detail.pos.modal.actions.saving')}
+                          </>
+                      ) : (
+                          t('restaurant.detail.pos.modal.actions.save')
+                      )}
+                    </button>
                   </div>
 
-                  {/* Active Checkbox */}
-                  <div className="flex items-start">
-                    <div className="flex items-center h-5">
-                      <input
-                          id="is-active"
-                          type="checkbox"
-                          className="h-4 w-4 rounded border-gray-200 bg-gray-50 text-green-500 focus:ring-green-500 focus:ring-offset-0"
-                          checked={posFormData.isActive}
-                          onChange={(e) => setPosFormData({...posFormData, isActive: e.target.checked})}
-                      />
-                    </div>
-                    <div className="ml-3">
-                      <label htmlFor="is-active" className="text-sm font-medium text-gray-900">{t('restaurant.detail.pos.modal.fields.activateIntegration')}</label>
-                      <p className="text-sm text-gray-600">{t('restaurant.detail.pos.modal.fields.activateIntegrationDescription', { name: restaurant?.name })}</p>
+                  {/* Information Note */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex">
+                      <WifiIcon className="h-5 w-5 text-blue-400 mr-3 mt-0.5" />
+                      <div>
+                        <h4 className="text-sm font-medium text-blue-800 mb-1">
+                          {t('restaurant.detail.pos.modal.info.title')}
+                        </h4>
+                        <p className="text-sm text-blue-700">
+                          {t('restaurant.detail.pos.modal.info.description')}
+                        </p>
+                      </div>
                     </div>
                   </div>
-
-                  {/* Test Connection Button */}
-                  <button
-                      onClick={() => {
-                        console.log('Testing POS connection:', posFormData)
-                        alert(t('restaurant.detail.pos.modal.testingConnection'))
-                      }}
-                      className="w-full px-6 py-3 bg-gradient-to-r from-[#2BE89A] to-[#4FFFB0] text-black font-semibold rounded-lg hover:opacity-90 transition-all shadow-lg"
-                  >
-                    {t('restaurant.detail.pos.modal.actions.testConnection')}
-                  </button>
                 </div>
               </div>
             </div>

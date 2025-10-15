@@ -16,13 +16,6 @@ import {
     ArrowPathIcon,
     CpuChipIcon,
     ExclamationTriangleIcon,
-    ChevronRightIcon,
-    BellAlertIcon,
-    SignalSlashIcon,
-    SignalIcon,
-    BoltIcon,
-    XMarkIcon,
-    MapPinIcon,
     MagnifyingGlassIcon
 } from '@heroicons/react/24/outline'
 
@@ -37,49 +30,45 @@ function getAuthHeaders() {
     }
 }
 
-interface Restaurant {
+// Updated interfaces to match backend response
+interface RestaurantPosDetails {
+    id: number
+    pos_type: string
+    username: string
+    password: string
+    base_url: string
+    is_connected: boolean
+    is_active: boolean
+}
+
+interface RestaurantPOS {
     id: number
     name: string
-    city: string
-    country: string
     address: string
+    city: string
+    postal_code: string
+    country: string
     logo_url?: string
     is_active: boolean
-    status: 'active' | 'onboarding' | 'deleted' | 'inactive'
-    pos_config?: {
-        pos_type: string
-        username: string
-        environment: string
-        is_active: boolean
-    }
+    pos_info: RestaurantPosDetails | null
 }
 
-interface POSStatus {
-    connected: boolean
-    configured: boolean
-    pos_type?: string
-    username?: string
-    environment?: string
-    is_active?: boolean
-    last_sync?: string | null
+interface RestaurantPOSPageResponse {
+    restaurants: RestaurantPOS[]
+    total_amount: number
+    total_configured: number
+    total_connected: number
+    offset: number
+    limit: number
 }
 
-interface Notification {
-    id: string
-    type: 'error' | 'warning' | 'info'
-    title: string
-    message: string
-    restaurantId: number
-    timestamp: string
-}
+
 
 const POSIntegration: NextPage = () => {
     const { t } = useLanguage()
 
     // State для данных
-    const [allRestaurants, setAllRestaurants] = useState<Restaurant[]>([])
-    const [posStatuses, setPosStatuses] = useState<Record<number, POSStatus>>({})
-    const [notifications, setNotifications] = useState<Notification[]>([])
+    const [restaurantData, setRestaurantData] = useState<RestaurantPOSPageResponse | null>(null)
     const [loading, setLoading] = useState(true)
     const [refreshing, setRefreshing] = useState(false)
     const [searching, setSearching] = useState(false)
@@ -89,7 +78,6 @@ const POSIntegration: NextPage = () => {
     const [searchQuery, setSearchQuery] = useState('')
     const [debouncedSearch, setDebouncedSearch] = useState('')
     const [selectedFilter, setSelectedFilter] = useState('all')
-    const [showNotifications, setShowNotifications] = useState(true)
 
     useEffect(() => {
         document.title = 'Admin Panel - Splitty'
@@ -114,14 +102,29 @@ const POSIntegration: NextPage = () => {
             }
 
             const params = new URLSearchParams()
-            if (searchTerm) {
-                params.append('search', searchTerm)
-            }
-            params.append('limit', '100')
 
-            const response = await fetch(`${API_BASE_URL}/super_admin/restaurants?${params}`, {
+            // Только добавляем параметры если они есть
+            if (searchTerm && searchTerm.trim()) {
+                params.append('search', searchTerm.trim())
+            }
+            if (selectedFilter && selectedFilter !== 'all') {
+                params.append('location', selectedFilter)
+            }
+
+            // Всегда добавляем limit и offset
+            params.append('limit', '1000')
+            params.append('offset', '0')
+
+            const url = `${API_BASE_URL}/super_admin/restaurants/pos_connections?${params}`
+            console.log('Making request to:', url)
+            console.log('Request headers:', getAuthHeaders())
+
+            const response = await fetch(url, {
                 headers: getAuthHeaders()
             })
+
+            console.log('Response status:', response.status)
+            console.log('Response headers:', response.headers)
 
             // Добавить обработку 401
             if (response.status === 401) {
@@ -135,12 +138,20 @@ const POSIntegration: NextPage = () => {
                 return Promise.reject(new Error('Unauthorized'))
             }
 
+            if (response.status === 422) {
+                const errorData = await response.json()
+                console.error('422 Validation Error:', errorData)
+                throw new Error(`Validation Error: ${JSON.stringify(errorData)}`)
+            }
+
             if (response.ok) {
-                const restaurantsData = await response.json()
-                setAllRestaurants(restaurantsData)
-                loadPosStatuses(restaurantsData)
+                const data: RestaurantPOSPageResponse = await response.json()
+                console.log('Received data:', data)
+                setRestaurantData(data)
             } else {
-                throw new Error(t('pos.errors.loadRestaurants'))
+                const errorText = await response.text()
+                console.error('Error response:', errorText)
+                throw new Error(`HTTP ${response.status}: ${errorText}`)
             }
         } catch (err: any) {
             console.error('Error loading restaurants:', err)
@@ -151,56 +162,30 @@ const POSIntegration: NextPage = () => {
         }
     }
 
-    // Простая логика статусов POS только по данным ресторана
-    const loadPosStatuses = (restaurantsData: Restaurant[]) => {
-        const statuses: Record<number, POSStatus> = {}
-        const newNotifications: Notification[] = []
 
-        for (const restaurant of restaurantsData) {
-            if (!restaurant.is_active || restaurant.status === 'deleted') {
-                continue // Не показываем deleted/неактивные
-            }
-
-            if (restaurant.status === 'onboarding') {
-                // POS не настроен
-                statuses[restaurant.id] = { connected: false, configured: false }
-
-                newNotifications.push({
-                    id: `${restaurant.id}-not-configured`,
-                    type: 'info',
-                    title: t('pos.status.notConfigured'),
-                    message: t('pos.notifications.needsSetup', { restaurant: restaurant.name }),
-                    restaurantId: restaurant.id,
-                    timestamp: new Date().toISOString()
-                })
-            } else if (restaurant.status === 'active') {
-                // POS настроен и активен
-                statuses[restaurant.id] = {
-                    connected: true,
-                    configured: true,
-                    is_active: true,
-                    last_sync: new Date().toISOString()
-                }
-            }
-        }
-
-        setPosStatuses(statuses)
-        setNotifications(newNotifications)
-    }
 
     // Первоначальная загрузка
     useEffect(() => {
         loadRestaurants()
     }, [])
 
-    // Поиск при изменении запроса
+    // Поиск при изменении запроса (только если не пустой)
     useEffect(() => {
         if (debouncedSearch.trim()) {
             loadRestaurants(debouncedSearch)
         } else if (debouncedSearch === '' && searchQuery === '') {
+            // Перезагружаем только если очистили поиск
             loadRestaurants()
         }
-    }, [debouncedSearch, searchQuery])
+    }, [debouncedSearch])
+
+    // Поиск при изменении фильтра локации (но не при первом рендере)
+    useEffect(() => {
+        // Не вызываем при первоначальной загрузке
+        if (restaurantData !== null) {
+            loadRestaurants(searchQuery)
+        }
+    }, [selectedFilter])
 
     // Обновление данных
     const handleRefresh = async () => {
@@ -209,21 +194,15 @@ const POSIntegration: NextPage = () => {
         setRefreshing(false)
     }
 
-    // Фильтрация ресторанов
-    const filteredRestaurants = allRestaurants.filter((restaurant) => {
-        if (!restaurant.is_active || restaurant.status === 'deleted') return false
+    // Фильтрация ресторанов (дополнительная фильтрация на фронте если нужно)
+    const filteredRestaurants = restaurantData?.restaurants.filter((restaurant) => {
+        return restaurant.is_active
+    }) || []
 
-        const matchesLocation = selectedFilter === 'all' ||
-            restaurant.city.toLowerCase().includes(selectedFilter.toLowerCase())
-
-        return matchesLocation
-    })
-
-    // Подсчет статистики
-    const activeRestaurants = allRestaurants.filter(r => r.is_active && r.status !== 'deleted')
-    const configuredCount = Object.values(posStatuses).filter(s => s.configured).length
-    const connectedCount = Object.values(posStatuses).filter(s => s.connected).length
-    const issuesCount = notifications.filter(n => n.type === 'error' || n.type === 'warning').length
+    // Статистика из backend response
+    const totalAmount = restaurantData?.total_amount || 0
+    const configuredCount = restaurantData?.total_configured || 0
+    const connectedCount = restaurantData?.total_connected || 0
 
     if (loading) {
         return (
@@ -290,7 +269,7 @@ const POSIntegration: NextPage = () => {
                             </button>
                         </div>
 
-                        {/* Stats Cards */}
+                        {/* Stats Cards - теперь используем данные из backend */}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
                             <div className="p-6 rounded-xl bg-white shadow-sm">
                                 <div className="flex items-center">
@@ -302,7 +281,7 @@ const POSIntegration: NextPage = () => {
                                             {t('pos.stats.totalRestaurants')}
                                         </p>
                                         <p className="text-2xl font-bold mt-2 text-[#111827]">
-                                            {activeRestaurants.length}
+                                            {totalAmount}
                                         </p>
                                     </div>
                                 </div>
@@ -350,7 +329,7 @@ const POSIntegration: NextPage = () => {
                                             {t('pos.stats.issues')}
                                         </p>
                                         <p className="text-2xl font-bold mt-2 text-[#111827]">
-                                            {issuesCount}
+                                            0
                                         </p>
                                     </div>
                                 </div>
@@ -402,45 +381,7 @@ const POSIntegration: NextPage = () => {
                             </div>
                         </div>
 
-                        {/* Notifications Section */}
-                        {issuesCount > 0 && showNotifications && (
-                            <div className="rounded-lg bg-white border border-gray-200">
-                                <div className="p-4">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <div className="flex items-center">
-                                            <ExclamationTriangleIcon className="h-5 w-5 mr-2 text-yellow-500" />
-                                            <h3 className="text-sm font-medium text-gray-900">
-                                                {t('pos.notifications.attentionRequired', { count: issuesCount })}
-                                            </h3>
-                                        </div>
-                                        <button
-                                            onClick={() => setShowNotifications(false)}
-                                            className="p-1 rounded transition-colors hover:bg-gray-100"
-                                        >
-                                            <XMarkIcon className="h-4 w-4 text-gray-500" />
-                                        </button>
-                                    </div>
-                                    <div className="space-y-2">
-                                        {notifications.filter(n => n.type === 'error' || n.type === 'warning').slice(0, 3).map((notification) => (
-                                            <div
-                                                key={notification.id}
-                                                className="flex items-center justify-between"
-                                            >
-                                                <p className="text-sm text-gray-600">
-                                                    {notification.message}
-                                                </p>
-                                                <Link
-                                                    href={`/admin/restaurants/new/onboarding/${notification.restaurantId}?step=3`}
-                                                    className="text-sm text-green-600 hover:text-green-700"
-                                                >
-                                                    {t('pos.actions.configure')} →
-                                                </Link>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+
 
                         {/* Restaurant POS Status List */}
                         <div className="rounded-xl overflow-hidden bg-white shadow-sm">
@@ -452,19 +393,32 @@ const POSIntegration: NextPage = () => {
 
                             <div className="p-4 space-y-3">
                                 {filteredRestaurants.map((restaurant) => {
-                                    const posStatus = posStatuses[restaurant.id]
-                                    const isConfigured = posStatus && posStatus.configured
-                                    const isConnected = posStatus && posStatus.connected
-                                    const isActive = posStatus && posStatus.is_active
+                                    const isConfigured = restaurant.pos_info !== null
+                                    const isConnected = restaurant.pos_info?.is_connected || false
+                                    const isActive = restaurant.pos_info?.is_active || false
+
+                                    // Определяем фон и бордер карточки
+                                    let cardBg = ''
+                                    let borderClass = ''
+
+                                    if (isConnected && isActive) {
+                                        // Нормальные - зеленый фон и бордер
+                                        cardBg = 'bg-green-50/60'
+                                        borderClass = 'border border-green-200 hover:border-green-300'
+                                    } else if (isConfigured && !isConnected) {
+                                        // Не подключены - желтый фон и бордер
+                                        cardBg = 'bg-yellow-50/60'
+                                        borderClass = 'border border-yellow-200 hover:border-yellow-300'
+                                    } else {
+                                        // Нет POS - красный фон и бордер
+                                        cardBg = 'bg-red-50/60'
+                                        borderClass = 'border border-red-200 hover:border-red-300'
+                                    }
 
                                     return (
                                         <div
                                             key={restaurant.id}
-                                            className={`p-5 rounded-lg transition-all ${
-                                                !isConfigured
-                                                    ? 'bg-white border border-red-200 hover:border-red-300'
-                                                    : 'bg-white border border-green-200 hover:border-green-300'
-                                            }`}
+                                            className={`p-5 rounded-lg transition-all ${cardBg} ${borderClass}`}
                                         >
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center space-x-4">
@@ -488,9 +442,9 @@ const POSIntegration: NextPage = () => {
                                                             <h3 className="text-sm font-medium text-gray-900">
                                                                 {restaurant.name}
                                                             </h3>
-                                                            {posStatus && posStatus.configured && (
+                                                            {restaurant.pos_info && (
                                                                 <span className="text-xs text-gray-400">
-                                                                    {posStatus.pos_type}
+                                                                    {restaurant.pos_info.pos_type}
                                                                 </span>
                                                             )}
                                                         </div>
@@ -506,9 +460,9 @@ const POSIntegration: NextPage = () => {
                                                         isConnected && isActive
                                                             ? 'bg-green-50 text-green-700'
                                                             : !isConfigured
-                                                                ? 'bg-blue-50 text-blue-700'
+                                                                ? 'bg-red-50 text-red-600'
                                                                 : !isConnected
-                                                                    ? 'bg-red-50 text-red-600'
+                                                                    ? 'bg-yellow-50 text-yellow-700'
                                                                     : 'bg-yellow-50 text-yellow-700'
                                                     }`}>
                                                         {isConnected && isActive ? (
@@ -518,12 +472,12 @@ const POSIntegration: NextPage = () => {
                                                             </>
                                                         ) : !isConfigured ? (
                                                             <>
-                                                                <ClockIcon className="h-3.5 w-3.5 mr-1" />
+                                                                <XCircleIcon className="h-3.5 w-3.5 mr-1" />
                                                                 {t('pos.status.notConfigured')}
                                                             </>
                                                         ) : !isConnected ? (
                                                             <>
-                                                                <XCircleIcon className="h-3.5 w-3.5 mr-1" />
+                                                                <ClockIcon className="h-3.5 w-3.5 mr-1" />
                                                                 {t('pos.status.notConnected')}
                                                             </>
                                                         ) : (
@@ -536,20 +490,10 @@ const POSIntegration: NextPage = () => {
 
                                                     {/* Action */}
                                                     <Link
-                                                        href={isConfigured && isConnected && isActive
-                                                            ? `/admin/restaurants/detail/${restaurant.id}`
-                                                            : `/admin/restaurants/new/onboarding/${restaurant.id}?step=3`
-                                                        }
-                                                        className={`text-sm font-medium ${
-                                                            !isConfigured || !isConnected || !isActive
-                                                                ? 'text-green-600 hover:text-green-700'
-                                                                : 'text-gray-600 hover:text-gray-700'
-                                                        }`}
+                                                        href={`/admin/restaurants/detail/${restaurant.id}`}
+                                                        className="text-sm font-medium text-gray-600 hover:text-gray-700"
                                                     >
-                                                        {!isConfigured || !isConnected || !isActive ?
-                                                            `${t('pos.actions.configure')} →` :
-                                                            `${t('pos.actions.details')} →`
-                                                        }
+                                                        {t('pos.actions.details')} →
                                                     </Link>
                                                 </div>
                                             </div>

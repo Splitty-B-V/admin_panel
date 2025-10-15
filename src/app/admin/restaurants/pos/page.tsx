@@ -169,18 +169,22 @@ const POSIntegration: NextPage = () => {
         loadRestaurants()
     }, [])
 
-    // Поиск при изменении запроса
+    // Поиск при изменении запроса (только если не пустой)
     useEffect(() => {
         if (debouncedSearch.trim()) {
             loadRestaurants(debouncedSearch)
         } else if (debouncedSearch === '' && searchQuery === '') {
+            // Перезагружаем только если очистили поиск
             loadRestaurants()
         }
-    }, [debouncedSearch, searchQuery])
+    }, [debouncedSearch])
 
-    // Поиск при изменении фильтра локации
+    // Поиск при изменении фильтра локации (но не при первом рендере)
     useEffect(() => {
-        loadRestaurants(searchQuery)
+        // Не вызываем при первоначальной загрузке
+        if (restaurantData !== null) {
+            loadRestaurants(searchQuery)
+        }
     }, [selectedFilter])
 
     // Обновление данных

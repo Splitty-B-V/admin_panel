@@ -1203,7 +1203,7 @@
   "restaurant.detail.sections.pos.connectedSystem": "Connected System",
   "restaurant.detail.sections.pos.status": "Status",
   "restaurant.detail.sections.pos.connected": "Connected",
-  "restaurant.detail.sections.pos.disconnected": "Disconnected",
+  "restaurant.detail.sections.pos.disconnected": "Not connected",
   "restaurant.detail.sections.tables.title": "Tables & QR Codes",
   "restaurant.detail.sections.tables.notConfigured": "No tables configured",
   "restaurant.detail.sections.tables.setup": "Setup Tables",

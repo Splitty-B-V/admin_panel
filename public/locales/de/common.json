@@ -1203,7 +1203,7 @@
   "restaurant.detail.sections.pos.connectedSystem": "Verbundenes System",
   "restaurant.detail.sections.pos.status": "Status",
   "restaurant.detail.sections.pos.connected": "Verbunden",
-  "restaurant.detail.sections.pos.disconnected": "Getrennt",
+  "restaurant.detail.sections.pos.disconnected": "Nicht verbunden",
   "restaurant.detail.sections.tables.title": "Tische & QR-Codes",
   "restaurant.detail.sections.tables.notConfigured": "Keine Tische konfiguriert",
   "restaurant.detail.sections.tables.setup": "Tische einrichten",

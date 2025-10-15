@@ -1203,7 +1203,7 @@
   "restaurant.detail.sections.pos.connectedSystem": "Verbonden systeem",
   "restaurant.detail.sections.pos.status": "Status",
   "restaurant.detail.sections.pos.connected": "Verbonden",
-  "restaurant.detail.sections.pos.disconnected": "Losgekoppeld",
+  "restaurant.detail.sections.pos.disconnected": "Niet verbonden",
   "restaurant.detail.sections.tables.title": "Tafels & QR-codes",
   "restaurant.detail.sections.tables.notConfigured": "Geen tafels geconfigureerd",
   "restaurant.detail.sections.tables.setup": "Tafels instellen",

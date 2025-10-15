@@ -462,7 +462,7 @@ const POSIntegration: NextPage = () => {
                                                             : !isConfigured
                                                                 ? 'bg-red-50 text-red-600'
                                                                 : !isConnected
-                                                                    ? 'bg-red-50 text-red-600'
+                                                                    ? 'bg-yellow-50 text-yellow-700'
                                                                     : 'bg-yellow-50 text-yellow-700'
                                                     }`}>
                                                         {isConnected && isActive ? (
@@ -473,11 +473,11 @@ const POSIntegration: NextPage = () => {
                                                         ) : !isConfigured ? (
                                                             <>
                                                                 <XCircleIcon className="h-3.5 w-3.5 mr-1" />
-                                                                {t('pos.status.notConnected')}
+                                                                {t('pos.status.notConfigured')}
                                                             </>
                                                         ) : !isConnected ? (
                                                             <>
-                                                                <XCircleIcon className="h-3.5 w-3.5 mr-1" />
+                                                                <ClockIcon className="h-3.5 w-3.5 mr-1" />
                                                                 {t('pos.status.notConnected')}
                                                             </>
                                                         ) : (

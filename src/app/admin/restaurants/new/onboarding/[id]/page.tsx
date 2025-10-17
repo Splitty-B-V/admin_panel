@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import {
+    CalendarDaysIcon,
     BuildingStorefrontIcon,
     UserGroupIcon,
     CreditCardIcon,
@@ -32,6 +33,7 @@ import {
 import {env} from "@/lib/env";
 import SmartLayout from "@/components/common/SmartLayout";
 import { useLanguage } from '@/contexts/LanguageContext'
+import AppointmentStep from '@/components/super_admin/onboarding/AppointmentStep'
 
 // Helper function to get auth headers
 function getAuthHeaders() {
@@ -263,36 +265,42 @@ export default function SuperAdminOnboardingPage() {
     const OnboardingSteps: OnboardingStep[] = [
         {
             id: 1,
+            name: t('onboarding.steps.appointment.name'),
+            description: t('onboarding.steps.appointment.description'),
+            icon: CalendarDaysIcon,
+        },
+        {
+            id: 2,
             name: t('onboarding.steps.personnel.name'),
             description: t('onboarding.steps.personnel.description'),
             icon: UserGroupIcon,
         },
         {
-            id: 2,
+            id: 3,
             name: t('onboarding.steps.stripe.name'),
             description: t('onboarding.steps.stripe.description'),
             icon: CreditCardIcon,
         },
         {
-            id: 3,
+            id: 4,
             name: t('onboarding.steps.pos.name'),
             description: t('onboarding.steps.pos.description'),
             icon: WifiIcon,
         },
         {
-            id: 4,
+            id: 5,
             name: t('onboarding.steps.qr.name'),
             description: t('onboarding.steps.qr.description'),
             icon: QrCodeIcon,
         },
         {
-            id: 5,
+            id: 6,
             name: t('onboarding.steps.googleReviews.name'),
             description: t('onboarding.steps.googleReviews.description'),
             icon: StarIcon,
         },
         {
-            id: 6,
+            id: 7,
             name: t('onboarding.steps.telegram.name'),
             description: t('onboarding.steps.telegram.description'),
             icon: ChatBubbleLeftRightIcon,
@@ -1008,6 +1016,18 @@ export default function SuperAdminOnboardingPage() {
         switch (currentStep) {
             case 1:
                 return (
+                    <AppointmentStep
+                        restaurantId={restaurantId}
+                        restaurant={restaurant}
+                        onNext={() => setCurrentStep(2)}
+                        onSkip={() => handleSkipStep(1)}
+                        saving={saving}
+                        API_BASE_URL={API_BASE_URL}
+                    />
+                )
+
+            case 2:
+                return (
                     <div className="space-y-6">
                         <div className="bg-white rounded-lg p-6 border border-gray-200">
                             <div className="flex items-center justify-between mb-6">
@@ -1308,7 +1328,7 @@ export default function SuperAdminOnboardingPage() {
                     </div>
                 )
 
-            case 2:
+            case 3:
                 return (
                     <div className="space-y-6">
                         <div className="bg-white rounded-lg p-6 border border-gray-200">
@@ -1407,7 +1427,7 @@ export default function SuperAdminOnboardingPage() {
                     </div>
                 )
 
-            case 3:
+            case 4:
                 return (
                     <div className="space-y-6">
                         <div className="bg-white rounded-lg p-6 border border-gray-200">
@@ -1733,7 +1753,7 @@ export default function SuperAdminOnboardingPage() {
                     </div>
                 )
 
-            case 4:
+            case 5:
                 return (
                     <div className="space-y-6">
                         <div className="bg-white rounded-lg p-6 border border-gray-200">
@@ -1997,7 +2017,7 @@ export default function SuperAdminOnboardingPage() {
                     </div>
                 )
 
-            case 5:
+            case 6:
                 return (
                     <div className="space-y-6">
                         <div className="bg-white rounded-lg p-6 border border-gray-200">
@@ -2136,7 +2156,7 @@ export default function SuperAdminOnboardingPage() {
                     </div>
                 )
 
-            case 6:
+            case 7:
                 return (
                     <div className="space-y-6">
                         <div className="bg-white rounded-lg p-6 border border-gray-200">
@@ -2335,7 +2355,7 @@ export default function SuperAdminOnboardingPage() {
                                     <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
                                         <div
                                             className="h-full bg-[#2BE89A] transition-all duration-500"
-                                            style={{ width: `${(progress.completed_steps.length / 6) * 100}%` }}
+                                            style={{ width: `${(progress.completed_steps.length / 7) * 100}%` }}
                                         />
                                     </div>
                                 </div>

@@ -476,7 +476,7 @@ const TableManagementModal: React.FC<{
   const [newTable, setNewTable] = useState({
     table_number: '',
     table_section: '',
-    table_design: 'default',
+    table_design: '1',
     is_active: true
   })
 
@@ -597,7 +597,7 @@ const TableManagementModal: React.FC<{
       setNewTable({
         table_number: '',
         table_section: '',
-        table_design: 'default',
+        table_design: '1',
         is_active: true
       })
       setShowCreateForm(false)

@@ -1,6 +1,7 @@
 import { AuthProvider } from '@/contexts/AuthContext'
 import { LanguageProvider } from '@/contexts/LanguageContext'
 import './globals.css'
+import {ToastProvider} from "@/contexts/ToastContext";
 
 export default function RootLayout({
    children,
@@ -10,11 +11,13 @@ export default function RootLayout({
     return (
         <html lang="nl">
             <body>
-                <LanguageProvider>
-                    <AuthProvider>
-                        {children}
-                    </AuthProvider>
-                </LanguageProvider>
+                <ToastProvider>
+                    <LanguageProvider>
+                        <AuthProvider>
+                            {children}
+                        </AuthProvider>
+                    </LanguageProvider>
+                </ToastProvider>
             </body>
         </html>
     )

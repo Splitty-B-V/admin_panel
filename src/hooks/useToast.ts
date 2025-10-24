@@ -1,0 +1,1 @@
+export { useToastGlobal as useToast, ToastProvider } from '@/contexts/ToastContext'

@@ -650,14 +650,14 @@ const Restaurants: NextPage = () => {
                             </div>
                         ) : (
                             <Link
-                                href={restaurant.status === 'onboarding' ? `/admin/restaurants/new/onboarding/${restaurant.id}` : `/admin/restaurants/detail/${restaurant.id}`}
+                                href={!restaurant.onboarding_completed ? `/admin/restaurants/new/onboarding/${restaurant.id}` : `/admin/restaurants/detail/${restaurant.id}`}
                                 className={`w-full inline-flex items-center justify-center px-3.5 py-2 rounded-md transition-all text-sm font-medium ${
-                                    restaurant.status === 'onboarding'
+                                    !restaurant.onboarding_completed
                                         ? 'bg-green-500 text-white hover:bg-green-600'
                                         : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
                                 }`}
                             >
-                              {restaurant.status === 'onboarding' ? t('restaurants.actions.continueOnboarding') : t('restaurants.actions.viewDetails')}
+                              {!restaurant.onboarding_completed ? t('restaurants.actions.continueOnboarding') : t('restaurants.actions.viewDetails')}
                               <ChevronRightIcon className="ml-2 h-4 w-4" />
                             </Link>
                         )}

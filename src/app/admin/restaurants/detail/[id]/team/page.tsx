@@ -72,7 +72,7 @@ function getAuthHeaders() {
     }
 }
 
-const API_BASE_URL = `http://${env.apiUrl}/${env.apiVersion}`
+const API_BASE_URL = `https://${env.apiUrl}/${env.apiVersion}`
 
 // API functions
 async function getTeamMembers(restaurantId: number): Promise<TeamStatInfo> {

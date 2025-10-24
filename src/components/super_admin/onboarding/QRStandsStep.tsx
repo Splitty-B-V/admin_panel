@@ -12,7 +12,7 @@ import {
 import { useLanguage } from '@/contexts/LanguageContext'
 import { env } from '@/lib/env'
 
-const API_BASE_URL = `http://${env.apiUrl}/${env.apiVersion}`
+const API_BASE_URL = `https://${env.apiUrl}/${env.apiVersion}`
 
 // Helper function to get auth headers
 function getAuthHeaders() {

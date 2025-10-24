@@ -9,7 +9,7 @@ import {
 } from '@/types/team';
 
 export const BASE_URL = `${env.apiUrl}/${env.apiVersion}`
-const API_BASE_URL = `http://${env.apiUrl}/${env.apiVersion}`
+const API_BASE_URL = `https://${env.apiUrl}/${env.apiVersion}`
 
 // Function for performing API requests
 async function apiRequest<T>(

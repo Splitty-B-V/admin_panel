@@ -130,38 +130,38 @@ interface DashboardAnalyticsResponse {
 // Stats Card Component
 const StatsCard: React.FC<StatsCardProps> = ({ icon: Icon, title, value, change, subtitle, onClick, isClickable = false, isActive = false }) => (
     <div
-        className={`bg-white rounded-lg sm:rounded-xl border p-2.5 xs:p-3 sm:p-4 md:p-6 transition-all duration-200 ${
+        className={`bg-white rounded-xl border p-4 sm:p-5 md:p-6 transition-all duration-300 ${
             isClickable ? 'cursor-pointer hover:shadow-lg hover:border-green-400' : 'hover:shadow-lg'
         } ${
             isActive ? 'border-green-500 shadow-lg ring-2 ring-green-100' : 'border-gray-200'
         }`}
         onClick={onClick}
     >
-        <div className="flex items-center justify-between mb-2 xs:mb-2.5 sm:mb-3 md:mb-4">
-            <div className={`p-1 xs:p-1.5 sm:p-2 rounded-md xs:rounded-lg transition-colors duration-200 ${
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <div className={`p-2 rounded-lg transition-colors duration-200 ${
                 isActive ? 'bg-green-50' : 'bg-gray-50'
             }`}>
-                <Icon className={`h-3.5 xs:h-4 sm:h-5 w-3.5 xs:w-4 sm:w-5 transition-colors duration-200 ${
+                <Icon className={`h-5 w-5 transition-colors duration-200 ${
                     isActive ? 'text-green-600' : 'text-gray-600'
                 }`} />
             </div>
             {change && (
-                <span className={`hidden xs:flex items-center text-xs sm:text-sm font-medium ${
+                <span className={`flex items-center text-xs sm:text-sm font-medium ${
                     change.startsWith('+') ? 'text-green-600' : 'text-red-600'
                 }`}>
           {change.startsWith('+') ? (
-              <ArrowTrendingUpIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-0.5 sm:mr-1" />
+              <ArrowTrendingUpIcon className="h-4 w-4 mr-1" />
           ) : (
-              <ArrowTrendingDownIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-0.5 sm:mr-1" />
+              <ArrowTrendingDownIcon className="h-4 w-4 mr-1" />
           )}
                     <span className="hidden min-[400px]:inline">{change}</span>
         </span>
             )}
         </div>
-        <p className="text-base xs:text-lg sm:text-xl md:text-2xl font-bold text-gray-900 truncate">{value}</p>
-        <p className="text-[10px] xs:text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1 line-clamp-2 leading-tight">{title}</p>
+        <p className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 truncate">{value}</p>
+        <p className="text-xs sm:text-sm text-gray-500 mt-1 line-clamp-2">{title}</p>
         {subtitle && (
-            <p className="text-[10px] xs:text-xs text-gray-400 mt-1 sm:mt-2 truncate hidden min-[400px]:block">{subtitle}</p>
+            <p className="text-xs text-gray-400 mt-2 truncate">{subtitle}</p>
         )}
     </div>
 )
@@ -365,10 +365,10 @@ const Dashboard: React.FC = () => {
 
     return (
         <SmartLayout>
-            <div className="p-3 sm:p-4 md:p-6">
+            <div className="p-4 sm:p-5 md:p-6">
                 {/* Header */}
-                <div className="mb-4 sm:mb-6 md:mb-8">
-                    <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+                <div className="mb-6 md:mb-8">
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
                         {greeting}, {userData?.name || user?.name}!
                     </h1>
                     <p className="text-sm sm:text-base text-gray-600 mt-1">
@@ -441,7 +441,7 @@ const Dashboard: React.FC = () => {
 
                 {/* Analytics Chart Section - Only for Admins */}
                 {isAdmin && (
-                    <div className="mb-4 sm:mb-6 md:mb-8">
+                    <div className="mb-6 md:mb-8">
                         <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg xs:rounded-xl sm:rounded-2xl border border-gray-200 shadow-lg p-2.5 xs:p-3 sm:p-4 md:p-6 overflow-hidden relative">
                             {/* Background decoration */}
                             <div className="absolute top-0 right-0 w-32 xs:w-48 sm:w-64 h-32 xs:h-48 sm:h-64 bg-gradient-to-br from-green-100/20 to-emerald-100/20 rounded-full blur-2xl xs:blur-3xl -mr-16 xs:-mr-24 sm:-mr-32 -mt-16 xs:-mt-24 sm:-mt-32"></div>
@@ -842,7 +842,7 @@ const Dashboard: React.FC = () => {
                             {isAdmin && (
                                 <button
                                     onClick={() => router.push('/restaurant/payment-history')}
-                                    className="text-xs sm:text-sm text-green-600 hover:text-green-700 font-medium hidden xs:block"
+                                    className="text-xs sm:text-sm text-green-600 hover:text-green-700 font-medium"
                                 >
                                     {t('dashboard.recentPayments.viewAll')} →
                                 </button>
@@ -859,7 +859,7 @@ const Dashboard: React.FC = () => {
                                 <th className="px-2 xs:px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[10px] xs:text-xs font-medium text-gray-500 uppercase tracking-wider">{t('dashboard.recentPayments.status')}</th>
                                 <th className="px-2 xs:px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[10px] xs:text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">{t('dashboard.recentPayments.time')}</th>
                                 {isAdmin && (
-                                    <th className="px-2 xs:px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[10px] xs:text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">{t('dashboard.recentPayments.actions')}</th>
+                                    <th className="px-2 xs:px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[10px] xs:text-xs font-medium text-gray-500 uppercase tracking-wider ">{t('dashboard.recentPayments.actions')}</th>
                                 )}
                             </tr>
                             </thead>
@@ -917,20 +917,20 @@ const Dashboard: React.FC = () => {
                                             }) : '-'}
                                         </td>
                                         {isAdmin && (
-                                            <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 whitespace-nowrap text-sm hidden md:table-cell">
+                                            <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 whitespace-nowrap text-sm ">
                                                 <div className="flex gap-1.5 items-center">
                                                     <button
                                                         onClick={() => router.push(`/restaurant/order/${payment.orderNumber}`)}
                                                         className="font-medium text-xs text-green-600 hover:text-green-700"
                                                     >
-                                                        {t('dashboard.recentPayments.order')}
+                                                        <span className="hidden md:inline">{t('dashboard.recentPayments.order')}</span><span className="md:hidden">O</span>
                                                     </button>
                                                     <span className="text-gray-300 text-xs">|</span>
                                                     <button
                                                         onClick={() => router.push(`/restaurant/payment/${payment.id}`)}
                                                         className="font-medium text-xs text-green-600 hover:text-green-700"
                                                     >
-                                                        {t('dashboard.recentPayments.payment')}
+                                                        <span className="hidden md:inline">{t('dashboard.recentPayments.payment')}</span><span className="md:hidden">P</span>
                                                     </button>
                                                 </div>
                                             </td>

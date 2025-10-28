@@ -186,27 +186,27 @@ export default function Uitbetalingen() {
             <div className="p-6">
                 {/* Header */}
                 <div className="mb-8">
-                    <div className="flex justify-between items-start">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
                         <div>
-                            <h1 className="text-2xl font-bold text-gray-900">{t('payouts.title')}</h1>
-                            <p className="text-gray-600 mt-1">{t('payouts.subtitle')}</p>
+                            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{t('payouts.title')}</h1>
+                            <p className="text-gray-600 mt-1 text-sm sm:text-base">{t('payouts.subtitle')}</p>
                         </div>
-                        <div className="flex space-x-3">
+                        <div className="flex gap-3">
                             <button
                                 onClick={refreshAll}
                                 disabled={payoutsLoading || balanceLoading || statsLoading}
-                                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition flex items-center disabled:opacity-50"
+                                className="px-3 sm:px-4 py-2 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition flex items-center justify-center disabled:opacity-50"
                             >
-                                <ArrowPathIcon className={`h-5 w-5 mr-2 ${(payoutsLoading || balanceLoading || statsLoading) ? 'animate-spin' : ''}`} />
-                                {t('payouts.actions.refresh')}
+                                <ArrowPathIcon className={`h-5 w-5 sm:mr-2 ${(payoutsLoading || balanceLoading || statsLoading) ? 'animate-spin' : ''}`} />
+                                <span className="hidden sm:inline">{t('payouts.actions.refresh')}</span>
                             </button>
                             <button
                                 onClick={exportToCSV}
                                 disabled={payouts.length === 0}
-                                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition flex items-center disabled:opacity-50"
+                                className="px-3 sm:px-4 py-2 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition flex items-center justify-center disabled:opacity-50"
                             >
-                                <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
-                                {t('payouts.actions.exportCsv')}
+                                <ArrowDownTrayIcon className="h-5 w-5 sm:mr-2" />
+                                <span className="hidden sm:inline">{t('payouts.actions.exportCsv')}</span>
                             </button>
                         </div>
                     </div>

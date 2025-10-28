@@ -598,60 +598,60 @@ const TabContent = ({
                             </div>
 
                             {/* Daily Summary */}
-                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                                <div>
-                                    <p className="font-medium text-gray-900">
-                                        {t('settings.notifications.telegram.dailySummary')}
-                                    </p>
-                                    <p className="text-sm text-gray-600 mt-1">
-                                        {t('settings.notifications.telegram.dailySummaryDesc')}
-                                    </p>
-                                </div>
-                                <button
-                                    onClick={() => setNotificationSettings({
-                                        ...notificationSettings,
-                                        daily_summary: !notificationSettings.daily_summary
-                                    })}
-                                    disabled={saving}
-                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-                                        notificationSettings.daily_summary ? 'bg-green-500' : 'bg-gray-300'
-                                    }`}
-                                >
-                                    <span
-                                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                            notificationSettings.daily_summary ? 'translate-x-6' : 'translate-x-1'
-                                        }`}
-                                    />
-                                </button>
-                            </div>
+                            {/*<div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">*/}
+                            {/*    <div>*/}
+                            {/*        <p className="font-medium text-gray-900">*/}
+                            {/*            {t('settings.notifications.telegram.dailySummary')}*/}
+                            {/*        </p>*/}
+                            {/*        <p className="text-sm text-gray-600 mt-1">*/}
+                            {/*            {t('settings.notifications.telegram.dailySummaryDesc')}*/}
+                            {/*        </p>*/}
+                            {/*    </div>*/}
+                            {/*    <button*/}
+                            {/*        onClick={() => setNotificationSettings({*/}
+                            {/*            ...notificationSettings,*/}
+                            {/*            daily_summary: !notificationSettings.daily_summary*/}
+                            {/*        })}*/}
+                            {/*        disabled={saving}*/}
+                            {/*        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${*/}
+                            {/*            notificationSettings.daily_summary ? 'bg-green-500' : 'bg-gray-300'*/}
+                            {/*        }`}*/}
+                            {/*    >*/}
+                            {/*        <span*/}
+                            {/*            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${*/}
+                            {/*                notificationSettings.daily_summary ? 'translate-x-6' : 'translate-x-1'*/}
+                            {/*            }`}*/}
+                            {/*        />*/}
+                            {/*    </button>*/}
+                            {/*</div>*/}
 
                             {/* Weekly Report */}
-                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                                <div>
-                                    <p className="font-medium text-gray-900">
-                                        {t('settings.notifications.telegram.weeklyReport')}
-                                    </p>
-                                    <p className="text-sm text-gray-600 mt-1">
-                                        {t('settings.notifications.telegram.weeklyReportDesc')}
-                                    </p>
-                                </div>
-                                <button
-                                    onClick={() => setNotificationSettings({
-                                        ...notificationSettings,
-                                        weekly_report: !notificationSettings.weekly_report
-                                    })}
-                                    disabled={saving}
-                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-                                        notificationSettings.weekly_report ? 'bg-green-500' : 'bg-gray-300'
-                                    }`}
-                                >
-                                    <span
-                                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                            notificationSettings.weekly_report ? 'translate-x-6' : 'translate-x-1'
-                                        }`}
-                                    />
-                                </button>
-                            </div>
+                            {/*<div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">*/}
+                            {/*    <div>*/}
+                            {/*        <p className="font-medium text-gray-900">*/}
+                            {/*            {t('settings.notifications.telegram.weeklyReport')}*/}
+                            {/*        </p>*/}
+                            {/*        <p className="text-sm text-gray-600 mt-1">*/}
+                            {/*            {t('settings.notifications.telegram.weeklyReportDesc')}*/}
+                            {/*        </p>*/}
+                            {/*    </div>*/}
+                            {/*    <button*/}
+                            {/*        onClick={() => setNotificationSettings({*/}
+                            {/*            ...notificationSettings,*/}
+                            {/*            weekly_report: !notificationSettings.weekly_report*/}
+                            {/*        })}*/}
+                            {/*        disabled={saving}*/}
+                            {/*        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${*/}
+                            {/*            notificationSettings.weekly_report ? 'bg-green-500' : 'bg-gray-300'*/}
+                            {/*        }`}*/}
+                            {/*    >*/}
+                            {/*        <span*/}
+                            {/*            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${*/}
+                            {/*                notificationSettings.weekly_report ? 'translate-x-6' : 'translate-x-1'*/}
+                            {/*            }`}*/}
+                            {/*        />*/}
+                            {/*    </button>*/}
+                            {/*</div>*/}
                         </div>
                     </div>
                 </div>

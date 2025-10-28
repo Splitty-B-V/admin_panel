@@ -20,7 +20,8 @@ import {
     ClipboardDocumentListIcon,
     UsersIcon,
 } from '@heroicons/react/24/outline'
-import {getPaymentDetails} from "@/lib/api";
+import {getPaymentDetails, downloadInvoice} from "@/lib/api";
+import RefundModal from "@/components/restaurant/payment/RefundModal";
 import SmartLayout from "@/components/common/SmartLayout";
 
 // TypeScript interfaces based on API response
@@ -111,6 +112,7 @@ const PaymentDetail: React.FC = () => {
     const [payment, setPayment] = useState<Payment | null>(null)
     const [loading, setLoading] = useState<boolean>(true)
     const [error, setError] = useState<string | null>(null)
+    const [isRefundModalOpen, setIsRefundModalOpen] = useState(false)
 
     useEffect(() => {
         document.title = 'Payment - Splitty'
@@ -155,7 +157,7 @@ const PaymentDetail: React.FC = () => {
     if (error) {
         return (
             <SmartLayout>
-                <div className="p-6">
+                <div className="p-4 sm:p-6">
                     <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                         <p className="text-red-800">Fout bij laden betaling: {error}</p>
                     </div>
@@ -167,7 +169,7 @@ const PaymentDetail: React.FC = () => {
     if (!payment) {
         return (
             <SmartLayout>
-                <div className="p-6">
+                <div className="p-4 sm:p-6">
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                         <p className="text-yellow-800">Betaling niet gevonden</p>
                     </div>
@@ -176,347 +178,342 @@ const PaymentDetail: React.FC = () => {
         )
     }
 
-    const getStatusColor = (status: Payment['status']): string => {
-        switch(status) {
+    const getStatusColor = (status: Payment['status']) => {
+        switch (status) {
             case 'completed': return 'bg-green-100 text-green-800 border-green-200'
-            case 'failed': return 'bg-red-100 text-red-800 border-red-200'
             case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200'
+            case 'failed': return 'bg-red-100 text-red-800 border-red-200'
             case 'refunded': return 'bg-gray-100 text-gray-800 border-gray-200'
             default: return 'bg-gray-100 text-gray-800 border-gray-200'
         }
     }
 
-    const getPaymentMethodDisplayName = (method: Payment['paymentMethod']): string => {
-        switch(method) {
+    const getStatusIcon = (status: Payment['status']) => {
+        switch (status) {
+            case 'completed': return <CheckCircleIcon className="h-5 w-5" />
+            case 'failed': return <XCircleIcon className="h-5 w-5" />
+            default: return <ClockIcon className="h-5 w-5" />
+        }
+    }
+
+    const getPaymentMethodDisplay = (method: Payment['paymentMethod']) => {
+        switch (method) {
+            case 'card': return 'Creditcard'
             case 'ideal': return 'iDEAL'
             case 'apple_pay': return 'Apple Pay'
             case 'google_pay': return 'Google Pay'
-            case 'card': return 'Credit Card'
             default: return method
         }
     }
 
     return (
         <SmartLayout>
-            <div className="p-6 max-w-7xl mx-auto">
+            <div className="min-h-screen bg-gray-50 pb-8">
                 {/* Header */}
-                <div className="mb-6">
-                    <button
-                        onClick={() => router.back()}
-                        className="flex items-center text-gray-600 hover:text-gray-900 transition-colors mb-4"
-                    >
-                        <ArrowLeftIcon className="h-5 w-5 mr-2" />
-                        {t("payment.backToOverview")}
-                    </button>
-
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h1 className="text-2xl font-bold text-gray-900">{t("order.paymentDetails")}</h1>
-                            <p className="text-gray-600 mt-1">{t('payment.transactionId')} ID: {payment.transactionId}</p>
-                        </div>
-                        <div className="flex items-center gap-3">
+                <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                        <div className="flex items-center justify-between">
                             <button
-                                onClick={() => router.push(`/restaurant/order/${payment.tableNumber}`)}
-                                className="px-4 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium flex items-center"
+                                onClick={() => router.back()}
+                                className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
                             >
-                                <ReceiptPercentIcon className="h-4 w-4 mr-2" />
-                                {t("dashboard.activeTables.viewOrder")}
+                                <ArrowLeftIcon className="h-5 w-5 mr-2" />
+                                <span className="text-sm sm:text-base">{t("common.back")}</span>
                             </button>
-                            <div className={`px-4 py-2 rounded-full text-sm font-medium border ${getStatusColor(payment.status)}`}>
-                                {payment.status === 'completed' && <CheckCircleIcon className="h-4 w-4 inline mr-1" />}
-                                {payment.status === 'failed' && <XCircleIcon className="h-4 w-4 inline mr-1" />}
-                                {payment.status === 'completed' ? t("payment.paid") : payment.status === 'failed' ? t("payment.failed") : payment.status === 'pending' ? t("payment.pending") : 'Terugbetaald'}
+                            <div className={`px-3 py-1 rounded-full border text-xs sm:text-sm font-medium flex items-center ${getStatusColor(payment.status)}`}>
+                                {getStatusIcon(payment.status)}
+                                <span className="ml-1.5 capitalize">{payment.status}</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Main Content Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Left Column - Payment Details */}
-                    <div className="lg:col-span-2 space-y-6">
-                        {/* Financial Breakdown */}
-                        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                            <div className="bg-gradient-to-r from-green-50 to-emerald-50 px-6 py-4 border-b border-gray-200">
-                                <h2 className="text-lg font-semibold text-gray-900 flex items-center">
-                                    <CalculatorIcon className="h-5 w-5 mr-2 text-green-600" />
-                                    {t("payment.financialOverview")}
-                                </h2>
-                            </div>
-                            <div className="p-6">
-                                <div className="space-y-4">
-                                    {/* Order Amount */}
-                                    <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-                                        <div className="flex items-center">
-                                            <ReceiptPercentIcon className="h-5 w-5 text-gray-400 mr-3" />
-                                            <span className="text-gray-700">{t("payment.orderAmount")}</span>
-                                        </div>
-                                        <span className="text-lg font-semibold text-gray-900">€{payment.orderAmount.toFixed(2)}</span>
+                {/* Main Content */}
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                    {/* Mobile: Single column, Desktop: Two columns */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Left Column - Main Payment Info */}
+                        <div className="lg:col-span-2 space-y-6">
+                            {/* Amount Summary */}
+                            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                                <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+                                    <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+                                        <BanknotesIcon className="h-5 w-5 mr-2 text-gray-600" />
+                                        {t("payment.totalAmount")}
+                                    </h2>
+                                </div>
+                                <div className="p-4 sm:p-6">
+                                    <div className="text-center py-4 sm:py-6">
+                                        <p className="text-3xl sm:text-4xl font-bold text-gray-900">
+                                            €{payment.totalCharged.toFixed(2)}
+                                        </p>
+                                        <p className="text-sm text-gray-500 mt-2">{t("payment.totalCharged")}</p>
                                     </div>
 
-                                    {/* Tip */}
-                                    <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-                                        <div className="flex items-center">
-                                            <GiftIcon className="h-5 w-5 text-gray-400 mr-3" />
-                                            <span className="text-gray-700">{t("payment.tip")}</span>
-                                            {payment.tipAmount > 0 && (
-                                                <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-                          {((payment.tipAmount / payment.orderAmount) * 100).toFixed(1)}%
-                        </span>
-                                            )}
+                                    {/* Breakdown - Responsive grid */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6 border-t border-gray-200">
+                                        <div className="text-center sm:text-left">
+                                            <p className="text-xs sm:text-sm text-gray-500">{t("payment.orderAmount")}</p>
+                                            <p className="text-lg sm:text-xl font-semibold text-gray-900 mt-1">€{payment.orderAmount.toFixed(2)}</p>
                                         </div>
-                                        <span className="text-lg font-semibold text-gray-900">€{payment.tipAmount.toFixed(2)}</span>
+                                        <div className="text-center sm:text-left">
+                                            <p className="text-xs sm:text-sm text-gray-500">{t("payment.tip")}</p>
+                                            <p className="text-lg sm:text-xl font-semibold text-green-600 mt-1">+€{payment.tipAmount.toFixed(2)}</p>
+                                        </div>
+                                        <div className="text-center sm:text-left">
+                                            <p className="text-xs sm:text-sm text-gray-500">{t("payment.splittyFee")}</p>
+                                            <p className="text-lg sm:text-xl font-semibold text-orange-600 mt-1">€{payment.splittyFee.toFixed(2)}</p>
+                                        </div>
                                     </div>
 
-                                    {/* Splitty Fee */}
-                                    <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-                                        <div className="flex items-center">
-                                            <CreditCardIcon className="h-5 w-5 text-gray-400 mr-3" />
-                                            <span className="text-gray-700">{t("payment.serviceFee")}</span>
-                                            <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                        {t("payment.paidByCustomer")}
-                      </span>
+                                    <div className="mt-6 pt-6 border-t border-gray-200">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm sm:text-base text-gray-600">{t("payment.netAmountReceived")}</span>
+                                            <span className="text-xl sm:text-2xl font-bold text-green-600">€{payment.netAmount.toFixed(2)}</span>
                                         </div>
-                                        <span className="text-lg font-semibold text-blue-600">€{payment.splittyFee.toFixed(2)}</span>
-                                    </div>
-
-                                    {/* Total Charged to Customer */}
-                                    <div className="flex justify-between items-center pb-3 border-b border-gray-200">
-                                        <div className="flex items-center">
-                                            <BanknotesIcon className="h-5 w-5 text-gray-400 mr-3" />
-                                            <div>
-                                                <span className="text-gray-700 font-medium">{t("order.totalAmount")}</span>
-                                                <p className="text-xs text-gray-500">{t("payment.amountIncludingTipsAndFee")}</p>
-                                            </div>
-                                        </div>
-                                        <span className="text-lg font-bold text-gray-900">€{payment.totalCharged.toFixed(2)}</span>
-                                    </div>
-
-                                    {/* Net Amount Restaurant Receives */}
-                                    <div className="flex justify-between items-center bg-green-50 rounded-lg p-4">
-                                        <div className="flex items-center">
-                                            <BuildingStorefrontIcon className="h-6 w-6 text-green-600 mr-3" />
-                                            <div>
-                                                <span className="text-green-900 font-semibold">{t("payment.restaurantReceives")}</span>
-                                                <p className="text-xs text-green-700">{t("payment.orderAmountPlusTip")}</p>
-                                            </div>
-                                        </div>
-                                        <span className="text-2xl font-bold text-green-600">€{payment.netAmount.toFixed(2)}</span>
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* Payment Items */}
-                        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                            <div className="px-6 py-4 border-b border-gray-200">
-                                <h2 className="text-lg font-semibold text-gray-900 flex items-center">
-                                    <ClipboardDocumentListIcon className="h-5 w-5 mr-2 text-gray-600" />
-                                    {t("payment.splitDetails.paidItems")}
-                                </h2>
-                            </div>
-                            <div className="p-6">
-                                <div className="space-y-3">
-                                    {payment.items.map((item, index) => (
-                                        <div key={index} className="flex justify-between items-start">
-                                            <div className="flex-1">
-                                                <div className="flex items-center">
-                          <span className="text-gray-700">
-                            {item.name}
-                              {item.quantity && item.quantity !== 1 && (
-                                  <span className="ml-2 text-sm text-gray-500">x{item.quantity}</span>
-                              )}
-                          </span>
+                            {/* Order Items */}
+                            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                                <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+                                    <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+                                        <ClipboardDocumentListIcon className="h-5 w-5 mr-2 text-gray-600" />
+                                        {t("payment.orderItems")}
+                                    </h2>
+                                </div>
+                                <div className="p-4 sm:p-6">
+                                    <div className="space-y-3">
+                                        {payment.items.map((item, index) => (
+                                            <div key={index} className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-3 border-b border-gray-100 last:border-0 gap-2 sm:gap-0">
+                                                <div className="flex items-start sm:items-center flex-1">
+                                                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 text-gray-600 text-xs font-medium flex-shrink-0 mt-0.5 sm:mt-0">
+                                                        {item.quantity}
+                                                    </span>
+                                                    <span className="ml-3 text-sm sm:text-base text-gray-900 break-words">{item.name}</span>
+                                                </div>
+                                                <div className="flex items-center justify-between sm:justify-end sm:ml-4 pl-9 sm:pl-0">
+                                                    <span className="text-xs text-gray-500 sm:mr-4">
+                                                        €{item.price.toFixed(2)} × {item.quantity}
+                                                    </span>
+                                                    <span className="text-sm sm:text-base font-semibold text-gray-900 ml-2">
+                                                        €{(item.price * item.quantity).toFixed(2)}
+                                                    </span>
                                                 </div>
                                             </div>
-                                            <span className="font-medium text-gray-900 ml-4">€{item.price.toFixed(2)}</span>
-                                        </div>
-                                    ))}
-                                    <div className="pt-3 mt-3 border-t border-gray-100">
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-sm font-medium text-gray-700">{t("payment.subtotalItems")}</span>
-                                            <span className="font-semibold text-gray-900">€{payment.orderAmount.toFixed(2)}</span>
-                                        </div>
+                                        ))}
                                     </div>
+                                </div>
+                            </div>
+
+                            {/* Payment Method & Times */}
+                            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                                <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+                                    <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+                                        <CreditCardIcon className="h-5 w-5 mr-2 text-gray-600" />
+                                        {t("payment.paymentMethod")}
+                                    </h2>
+                                </div>
+                                <div className="p-4 sm:p-6">
+                                    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div className="flex flex-col sm:block">
+                                            <dt className="text-sm font-medium text-gray-500">{t("payment.method")}</dt>
+                                            <dd className="mt-1 text-sm sm:text-base text-gray-900 font-semibold">
+                                                {getPaymentMethodDisplay(payment.paymentMethod)}
+                                            </dd>
+                                        </div>
+                                        <div className="flex flex-col sm:block">
+                                            <dt className="text-sm font-medium text-gray-500">{t("payment.provider")}</dt>
+                                            <dd className="mt-1 text-sm sm:text-base text-gray-900 capitalize font-semibold">
+                                                {payment.paymentProvider}
+                                            </dd>
+                                        </div>
+                                        <div className="flex flex-col sm:block">
+                                            <dt className="text-sm font-medium text-gray-500">{t("payment.paymentCreatedOn")}</dt>
+                                            <dd className="mt-1 text-sm text-gray-900">
+                                                {payment.timestamp.toLocaleString('nl-NL', {
+                                                    day: 'numeric',
+                                                    month: 'short',
+                                                    year: 'numeric',
+                                                    hour: '2-digit',
+                                                    minute: '2-digit'
+                                                })}
+                                            </dd>
+                                        </div>
+                                        <div className="flex flex-col sm:block">
+                                            <dt className="text-sm font-medium text-gray-500">{t("order.completed")}</dt>
+                                            <dd className="mt-1 text-sm text-gray-900">
+                                                {payment.processedAt ? payment.processedAt.toLocaleString('nl-NL', {
+                                                    day: 'numeric',
+                                                    month: 'short',
+                                                    year: 'numeric',
+                                                    hour: '2-digit',
+                                                    minute: '2-digit'
+                                                }) : 'N.v.t.'}
+                                            </dd>
+                                        </div>
+                                        <div className="flex flex-col sm:block sm:col-span-2">
+                                            <dt className="text-sm font-medium text-gray-500">{t("payment.payoutDate")}</dt>
+                                            <dd className="mt-1 text-sm text-gray-900">
+                                                {payment.settlementDate.toLocaleDateString('nl-NL', {
+                                                    day: 'numeric',
+                                                    month: 'long',
+                                                    year: 'numeric'
+                                                })}
+                                            </dd>
+                                        </div>
+                                    </dl>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Payment Method & Processing */}
-                        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                            <div className="px-6 py-4 border-b border-gray-200">
-                                <h2 className="text-base font-medium text-gray-900">
-                                    {t("payment.methodAndProcessing")}
-                                </h2>
-                            </div>
-                            <div className="p-6">
-                                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
-                                    <div className="flex items-center justify-between sm:block">
-                                        <dt className="text-sm font-medium text-gray-500">{t("payment.paymentMethod")}</dt>
-                                        <dd className="mt-1 text-sm text-gray-900 flex items-center">
-                                            <CreditCardIcon className="h-4 w-4 mr-1.5 text-gray-400" />
-                                            {getPaymentMethodDisplayName(payment.paymentMethod)}
-                                        </dd>
-                                    </div>
-                                    <div className="flex items-center justify-between sm:block">
-                                        <dt className="text-sm font-medium text-gray-500">{t("payment.paymentProvider")}</dt>
-                                        <dd className="mt-1 text-sm text-gray-900">{payment.paymentProvider}</dd>
-                                    </div>
-                                    <div className="flex items-center justify-between sm:block">
-                                        <dt className="text-sm font-medium text-gray-500">{t("payment.paymentCreatedOn")}</dt>
-                                        <dd className="mt-1 text-sm text-gray-900">
-                                            {payment.timestamp.toLocaleString('nl-NL', {
-                                                day: 'numeric',
-                                                month: 'short',
-                                                year: 'numeric',
-                                                hour: '2-digit',
-                                                minute: '2-digit'
-                                            })}
-                                        </dd>
-                                    </div>
-                                    <div className="flex items-center justify-between sm:block">
-                                        <dt className="text-sm font-medium text-gray-500">{t("order.completed")}</dt>
-                                        <dd className="mt-1 text-sm text-gray-900">
-                                            {payment.processedAt ? payment.processedAt.toLocaleString('nl-NL', {
-                                                day: 'numeric',
-                                                month: 'short',
-                                                year: 'numeric',
-                                                hour: '2-digit',
-                                                minute: '2-digit'
-                                            }) : 'N.v.t.'}
-                                        </dd>
-                                    </div>
-                                    <div className="flex items-center justify-between sm:block">
-                                        <dt className="text-sm font-medium text-gray-500">{t("payment.payoutDate")}</dt>
-                                        <dd className="mt-1 text-sm text-gray-900">
-                                            {payment.settlementDate.toLocaleDateString('nl-NL', {
-                                                day: 'numeric',
-                                                month: 'long',
-                                                year: 'numeric'
-                                            })}
-                                        </dd>
-                                    </div>
-                                </dl>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Right Column - Additional Info */}
-                    <div className="space-y-6">
-                        {/* Split Session Info */}
-                        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                            <div className="px-6 py-4 border-b border-gray-200">
-                                <h2 className="text-lg font-semibold text-gray-900 flex items-center">
-                                    <UsersIcon className="h-5 w-5 mr-2 text-gray-600" />
-                                    {t("payment.splitSessionInfo")}
-                                </h2>
-                            </div>
-                            <div className="p-6 space-y-4">
-                                <div>
-                                    <p className="text-sm text-gray-500 mb-1">{t("payment.splitModeInfo")}</p>
-                                    <p className="font-semibold text-gray-900 capitalize">
-                                        {payment.splitSession.split_mode === 'items' ? 'Items' :
-                                            payment.splitSession.split_mode === 'equal' ? 'Gelijk verdeeld' :
-                                                payment.splitSession.split_mode === 'custom' ? 'Aangepast' :
-                                                    payment.splitSession.split_mode}
-                                    </p>
+                        {/* Right Column - Additional Info */}
+                        <div className="space-y-6">
+                            {/* Split Session Info */}
+                            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                                <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+                                    <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+                                        <UsersIcon className="h-5 w-5 mr-2 text-gray-600" />
+                                        {t("payment.splitSessionInfo")}
+                                    </h2>
                                 </div>
-                                <div>
-                                    <p className="text-sm text-gray-500 mb-1">{t("payment.splitSessionStatus")}</p>
-                                    <div className="flex items-center">
-                                        <div className={`w-2 h-2 rounded-full mr-2 ${payment.splitSession.is_active ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                                        <p className="font-semibold text-gray-900">
-                                            {payment.splitSession.is_active ? t("payment.splitSessionStatusActive") : t("payment.splitSessionStatusActive")}
+                                <div className="p-4 sm:p-6 space-y-4">
+                                    <div>
+                                        <p className="text-sm text-gray-500 mb-1">{t("payment.splitModeInfo")}</p>
+                                        <p className="font-semibold text-gray-900 capitalize">
+                                            {payment.splitSession.split_mode === 'items' ? 'Items' :
+                                                payment.splitSession.split_mode === 'equal' ? 'Gelijk verdeeld' :
+                                                    payment.splitSession.split_mode === 'custom' ? 'Aangepast' :
+                                                        payment.splitSession.split_mode}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-gray-500 mb-1">{t("payment.splitSessionStatus")}</p>
+                                        <div className="flex items-center">
+                                            <div className={`w-2 h-2 rounded-full mr-2 ${payment.splitSession.is_active ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                                            <p className="font-semibold text-gray-900">
+                                                {payment.splitSession.is_active ? t("payment.splitSessionStatusActive") : t("payment.splitSessionStatusActive")}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    {payment.splitSession.people_count && (
+                                        <div>
+                                            <p className="text-sm text-gray-500 mb-1">Aantal personen</p>
+                                            <p className="font-semibold text-gray-900">{payment.splitSession.people_count}</p>
+                                        </div>
+                                    )}
+                                    <div>
+                                        <p className="text-sm text-gray-500 mb-1">{t("payment.splitSessionInfoId")}</p>
+                                        <p className="font-mono text-sm font-semibold text-gray-900 break-all">{payment.splitSession.id}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Quick Info */}
+                            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                                <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+                                    <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+                                        <InformationCircleIcon className="h-5 w-5 mr-2 text-gray-600" />
+                                        {t("payment.quickInfo")}
+                                    </h2>
+                                </div>
+                                <div className="p-4 sm:p-6 space-y-4">
+                                    <div>
+                                        <p className="text-sm text-gray-500 mb-1">{t("payment.paymentId")}</p>
+                                        <p className="font-mono text-sm font-semibold text-gray-900 break-all">{payment.id}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-gray-500 mb-1">{t("payment.transactionId")}</p>
+                                        <p className="font-mono text-xs sm:text-sm font-semibold text-gray-900 break-all">{payment.transactionId}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-gray-500 mb-1">{t("payment.orderNumber")}</p>
+                                        <p className="font-semibold text-gray-900 flex items-center">
+                                            <HashtagIcon className="h-4 w-4 mr-1 text-gray-600 flex-shrink-0" />
+                                            <span className="break-all">{payment.orderNumber}</span>
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-gray-500 mb-1">{t("payment.table")}</p>
+                                        <p className="font-semibold text-gray-900 flex items-center">
+                                            <BuildingStorefrontIcon className="h-4 w-4 mr-1 text-gray-600 flex-shrink-0" />
+                                            {t("payment.table")} {payment.tableNumber}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-gray-500 mb-1">{t("payment.time")}</p>
+                                        <p className="font-semibold text-gray-900 flex items-start sm:items-center">
+                                            <ClockIcon className="h-4 w-4 mr-1 text-gray-600 flex-shrink-0 mt-0.5 sm:mt-0" />
+                                            <span className="text-sm">{payment.timestamp.toLocaleString('nl-NL')}</span>
                                         </p>
                                     </div>
                                 </div>
-                                {payment.splitSession.people_count && (
-                                    <div>
-                                        <p className="text-sm text-gray-500 mb-1">Aantal personen</p>
-                                        <p className="font-semibold text-gray-900">{payment.splitSession.people_count}</p>
-                                    </div>
-                                )}
-                                <div>
-                                    <p className="text-sm text-gray-500 mb-1">{t("payment.splitSessionInfoId")}</p>
-                                    <p className="font-mono text-sm font-semibold text-gray-900">{payment.splitSession.id}</p>
-                                </div>
                             </div>
-                        </div>
 
-                        {/* Quick Info */}
-                        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                            <div className="px-6 py-4 border-b border-gray-200">
-                                <h2 className="text-lg font-semibold text-gray-900 flex items-center">
-                                    <InformationCircleIcon className="h-5 w-5 mr-2 text-gray-600" />
-                                    {t("payment.quickInfo")}
-                                </h2>
-                            </div>
-                            <div className="p-6 space-y-4">
-                                <div>
-                                    <p className="text-sm text-gray-500 mb-1">{t("payment.paymentId")}</p>
-                                    <p className="font-mono text-sm font-semibold text-gray-900">{payment.id}</p>
+                            {/* Actions */}
+                            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                                <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+                                    <h2 className="text-lg font-semibold text-gray-900">{t("payment.actions")}</h2>
                                 </div>
-                                <div>
-                                    <p className="text-sm text-gray-500 mb-1">{t("payment.transactionId")}</p>
-                                    <p className="font-mono text-sm font-semibold text-gray-900">{payment.transactionId}</p>
-                                </div>
-                                <div>
-                                    <p className="text-sm text-gray-500 mb-1">{t("payment.orderNumber")}</p>
-                                    <p className="font-semibold text-gray-900 flex items-center">
-                                        <HashtagIcon className="h-4 w-4 mr-1 text-gray-600" />
-                                        {payment.orderNumber}
-                                    </p>
-                                </div>
-                                <div>
-                                    <p className="text-sm text-gray-500 mb-1">{t("payment.table")}</p>
-                                    <p className="font-semibold text-gray-900 flex items-center">
-                                        <BuildingStorefrontIcon className="h-4 w-4 mr-1 text-gray-600" />
-                                        {t("payment.table")} {payment.tableNumber}
-                                    </p>
-                                </div>
-                                <div>
-                                    <p className="text-sm text-gray-500 mb-1">{t("payment.time")}</p>
-                                    <p className="font-semibold text-gray-900 flex items-center">
-                                        <ClockIcon className="h-4 w-4 mr-1 text-gray-600" />
-                                        {payment.timestamp.toLocaleString('nl-NL')}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                            <div className="px-6 py-4 border-b border-gray-200">
-                                <h2 className="text-lg font-semibold text-gray-900">{t("payment.actions")}</h2>
-                            </div>
-                            <div className="p-6 space-y-3">
-                                {payment.status === 'completed' && (
-                                    <>
-                                        <button className="w-full px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium flex items-center justify-center">
-                                            <DocumentTextIcon className="h-4 w-4 mr-2" />
-                                            {t("payment.downloadInvoice")}
+                                <div className="p-4 sm:p-6 space-y-3">
+                                    {payment.status === 'completed' && (
+                                        <>
+                                            <button
+                                                onClick={async () => {
+                                                    try {
+                                                        const blob = await downloadInvoice(payment.id)
+                                                        const url = URL.createObjectURL(blob)
+                                                        const link = document.createElement('a')
+                                                        link.href = url
+                                                        link.download = `invoice_${payment.id}.pdf`
+                                                        link.click()
+                                                        URL.revokeObjectURL(url)
+                                                    } catch (error) {
+                                                        console.error('Error downloading invoice:', error)
+                                                    }
+                                                }}
+                                                className="w-full px-4 py-2.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium flex items-center justify-center"
+                                            >
+                                                <DocumentTextIcon className="h-4 w-4 mr-2 flex-shrink-0" />
+                                                <span>{t("payment.downloadInvoice")}</span>
+                                            </button>
+                                            <button
+                                                onClick={() => setIsRefundModalOpen(true)}
+                                                className="w-full px-4 py-2.5 bg-orange-50 text-orange-700 rounded-lg hover:bg-orange-100 transition-colors text-sm font-medium"
+                                            >
+                                                {t("payment.requestRefund")}
+                                            </button>
+                                        </>
+                                    )}
+                                    {payment.status === 'failed' && (
+                                        <button className="w-full px-4 py-2.5 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium">
+                                            {t("payment.retryPayment")}
                                         </button>
-                                        <button className="w-full px-4 py-2 bg-orange-50 text-orange-700 rounded-lg hover:bg-orange-100 transition-colors text-sm font-medium">
-                                            {t("payment.requestRefund")}
-                                        </button>
-                                    </>
-                                )}
-                                {payment.status === 'failed' && (
-                                    <button className="w-full px-4 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium">
-                                        {t("payment.retryPayment")}
+                                    )}
+                                    <button
+                                        onClick={() => router.push(`/restaurant/order/${payment?.orderNumber}`)}
+                                        className="w-full px-4 py-2.5 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium"
+                                    >
+                                        {t("payment.viewOrderDetails")}
                                     </button>
-                                )}
-                                <button
-                                    onClick={() => router.push(`/restaurant/order/${payment?.orderNumber}`)}
-                                    className="w-full px-4 py-2 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium"
-                                >
-                                    {t("payment.viewOrderDetails")}
-                                </button>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+            {payment && (
+                <RefundModal
+                    payment={payment}
+                    isOpen={isRefundModalOpen}
+                    onClose={() => setIsRefundModalOpen(false)}
+                    onSuccess={() => {
+                        // Перезагрузить данные payment
+                        window.location.reload()
+                    }}
+                />
+            )}
         </SmartLayout>
     )
 }

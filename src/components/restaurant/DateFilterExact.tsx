@@ -592,7 +592,8 @@ export default function DateFilterExact({ selectedFilter, onFilterChange }: Date
                   </div>
                 </div>
               </div>
-              )}
             </div>
-        )
-        }
+        )}
+      </div>
+  )
+}

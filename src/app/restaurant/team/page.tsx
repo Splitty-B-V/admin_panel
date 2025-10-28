@@ -365,19 +365,19 @@ export default function Team(): JSX.Element {
 
     return (
         <SmartLayout>
-            <div className="p-2 xs:p-3 sm:p-4 md:p-6">
+            <div className="p-6">
                 {/* Header */}
-                <div className="mb-4 sm:mb-6 md:mb-8">
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-0">
+                <div className="mb-8">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
                         <div>
-                            <h1 className="text-base xs:text-lg sm:text-xl md:text-2xl font-bold text-gray-900">{t('team.title')}</h1>
-                            <p className="text-[10px] xs:text-xs sm:text-sm md:text-base text-gray-600 mt-0.5 sm:mt-1">{t('team.subtitle')}</p>
+                            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{t('team.title')}</h1>
+                            <p className="text-sm sm:text-base text-gray-600 mt-1">{t('team.subtitle')}</p>
                         </div>
                         <button
                             onClick={() => setShowAddModal(true)}
-                            className="px-2 xs:px-3 sm:px-4 py-1.5 xs:py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium rounded-md xs:rounded-lg hover:from-green-600 hover:to-emerald-600 transition shadow-sm flex items-center justify-center text-[10px] xs:text-xs sm:text-sm w-full sm:w-auto"
+                            className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium rounded-lg hover:from-green-600 hover:to-emerald-600 transition shadow-sm flex items-center justify-center text-sm sm:text-base w-full sm:w-auto"
                         >
-                            <UserPlusIcon className="h-3 w-3 xs:h-4 xs:w-4 sm:h-5 sm:w-5 mr-1 xs:mr-1.5 sm:mr-2" />
+                            <UserPlusIcon className="h-5 w-5 mr-2" />
                             {t('team.addEmployee')}
                         </button>
                     </div>
@@ -385,169 +385,171 @@ export default function Team(): JSX.Element {
 
                 {/* Stats Cards */}
                 {teamStats && (
-                    <div className="grid grid-cols-2 gap-2 xs:gap-3 sm:gap-4 mb-4 sm:mb-6 md:mb-8">
-                        <div className="bg-white rounded-md xs:rounded-lg p-3 xs:p-4 sm:p-5 border border-gray-200">
+                    <div className="grid grid-cols-2 gap-4 md:gap-6 mb-8">
+                        <div className="bg-white rounded-xl p-4 md:p-6 border border-gray-200">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-[8px] xs:text-[10px] sm:text-xs text-gray-500 uppercase tracking-wider mb-0.5 xs:mb-1">{t('team.stats.total')}</p>
-                                    <p className="text-lg xs:text-xl sm:text-2xl md:text-3xl font-semibold text-gray-900">{teamStats.total_members}</p>
+                                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">{t('team.stats.total')}</p>
+                                    <p className="text-2xl md:text-3xl font-semibold text-gray-900">{teamStats.total_members}</p>
                                 </div>
-                                <UsersIcon className="h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 text-gray-300" />
+                                <UsersIcon className="h-7 w-7 md:h-8 md:w-8 text-gray-300" />
                             </div>
                         </div>
-                        <div className="bg-white rounded-md xs:rounded-lg p-3 xs:p-4 sm:p-5 border border-gray-200">
+                        <div className="bg-white rounded-xl p-4 md:p-6 border border-gray-200">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-[8px] xs:text-[10px] sm:text-xs text-gray-500 uppercase tracking-wider mb-0.5 xs:mb-1">{t('team.stats.active')}</p>
-                                    <p className="text-lg xs:text-xl sm:text-2xl md:text-3xl font-semibold text-gray-900">{teamStats.active_members}</p>
+                                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">{t('team.stats.active')}</p>
+                                    <p className="text-2xl md:text-3xl font-semibold text-gray-900">{teamStats.active_members}</p>
                                 </div>
-                                <CheckCircleIcon className="h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 text-green-400" />
+                                <CheckCircleIcon className="h-7 w-7 md:h-8 md:w-8 text-green-400" />
                             </div>
                         </div>
                     </div>
                 )}
 
                 {/* Filters */}
-                <div className="bg-white rounded-md xs:rounded-lg sm:rounded-xl border border-gray-200 mb-3 xs:mb-4 sm:mb-6">
-                    <div className="p-2 xs:p-3 sm:p-4">
+                <div className="bg-white rounded-xl border border-gray-200 mb-6">
+                    <div className="p-4">
                         <div className="relative">
-                            <MagnifyingGlassIcon className="absolute left-2 xs:left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
+                            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                             <input
                                 type="text"
                                 placeholder={t('team.search')}
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-8 xs:pl-10 pr-2 xs:pr-3 sm:pr-4 py-1.5 sm:py-2 text-[10px] xs:text-xs sm:text-sm border border-gray-300 rounded-md xs:rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                             />
                         </div>
                     </div>
                 </div>
 
                 {/* Team Members Table */}
-                {/* Mobile Card View */}
-                <div className="block lg:hidden space-y-3">
-                    {filteredMembers.map((member) => (
-                        <div key={member.id} className="bg-white rounded-md xs:rounded-lg border border-gray-200 p-3 xs:p-4">
-                            <div className="flex items-start justify-between mb-3">
-                                <div className="flex items-center">
-                                    {member.profile_picture_url ? (
-                                        <img
-                                            src={member.profile_picture_url}
-                                            alt={member.full_name}
-                                            className="w-10 h-10 xs:w-12 xs:h-12 rounded-full object-cover"
-                                        />
-                                    ) : (
-                                        <div className="w-10 h-10 xs:w-12 xs:h-12 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center text-white font-medium text-xs xs:text-sm">
-                                            {getInitials(member.full_name)}
+                {/* Mobile & Tablet Card View */}
+                <div className="block xl:hidden">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {filteredMembers.map((member) => (
+                            <div key={member.id} className="bg-white rounded-xl border border-gray-200 p-4 md:p-5">
+                                <div className="flex items-start justify-between mb-3">
+                                    <div className="flex items-center">
+                                        {member.profile_picture_url ? (
+                                            <img
+                                                src={member.profile_picture_url}
+                                                alt={member.full_name}
+                                                className="w-12 h-12 md:w-14 md:h-14 rounded-full object-cover"
+                                            />
+                                        ) : (
+                                            <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center text-white font-medium text-sm">
+                                                {getInitials(member.full_name)}
+                                            </div>
+                                        )}
+                                        <div className="ml-3 md:ml-4">
+                                            <div className="text-base md:text-lg font-medium text-gray-900">{member.full_name}</div>
+                                            <div className="text-xs text-gray-500">{t('team.table.since')} {new Date(member.created_at).toLocaleDateString()}</div>
                                         </div>
-                                    )}
-                                    <div className="ml-3">
-                                        <div className="text-sm xs:text-base font-medium text-gray-900">{member.full_name}</div>
-                                        <div className="text-[10px] xs:text-xs text-gray-500">{t('team.table.since')} {new Date(member.created_at).toLocaleDateString()}</div>
                                     </div>
-                                </div>
-                                {canManageMember(member) ? (
-                                    <button
-                                        onClick={() => toggleMemberStatus(member)}
-                                        className="group"
-                                        title={member.is_active ? t('team.table.clickToDeactivate') : t('team.table.clickToActivate')}
-                                    >
-                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] xs:text-xs font-medium ${
+                                    {canManageMember(member) ? (
+                                        <button
+                                            onClick={() => toggleMemberStatus(member)}
+                                            className="group"
+                                            title={member.is_active ? t('team.table.clickToDeactivate') : t('team.table.clickToActivate')}
+                                        >
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                                             member.is_active
                                                 ? 'bg-green-100 text-green-800 group-hover:bg-green-200'
                                                 : 'bg-gray-100 text-gray-800 group-hover:bg-gray-200'
                                         } transition-colors cursor-pointer`}>
-                                            <span className={`w-1.5 h-1.5 xs:w-2 xs:h-2 rounded-full mr-1 ${
+                                            <span className={`w-2 h-2 rounded-full mr-1 ${
                                                 member.is_active ? 'bg-green-500' : 'bg-gray-500'
                                             }`}></span>
-                                            {member.is_active ? t('team.table.active') : t('team.table.inactive')}
+                                            {member.is_active ? t('team.statusBadge.active') : t('team.statusBadge.inactive')}
                                         </span>
-                                    </button>
-                                ) : (
-                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] xs:text-xs font-medium ${
-                                        member.is_active
-                                            ? 'bg-green-100 text-green-800'
-                                            : 'bg-gray-100 text-gray-800'
-                                    }`}>
-                                        <span className={`w-1.5 h-1.5 xs:w-2 xs:h-2 rounded-full mr-1 ${
+                                        </button>
+                                    ) : (
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                            member.is_active
+                                                ? 'bg-green-100 text-green-800'
+                                                : 'bg-gray-100 text-gray-800'
+                                        }`}>
+                                        <span className={`w-2 h-2 rounded-full mr-1 ${
                                             member.is_active ? 'bg-green-500' : 'bg-gray-500'
                                         }`}></span>
-                                        {member.is_active ? t('team.table.active') : t('team.table.inactive')}
+                                            {member.is_active ? t('team.statusBadge.active') : t('team.statusBadge.inactive')}
                                     </span>
-                                )}
-                            </div>
+                                    )}
+                                </div>
 
-                            <div className="space-y-2 text-[10px] xs:text-xs sm:text-sm">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-gray-500">{t('team.table.role')}:</span>
-                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] xs:text-xs font-medium ${getRoleColor(member.is_restaurant_admin)}`}>
+                                <div className="space-y-2 md:space-y-3 text-sm">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-gray-500">{t('team.table.role')}:</span>
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getRoleColor(member.is_restaurant_admin)}`}>
                                         {getRoleDisplay(member.is_restaurant_admin)}
                                     </span>
-                                </div>
+                                    </div>
 
-                                {member.phone && (
+                                    {member.phone && (
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-gray-500">{t('team.table.phone')}:</span>
+                                            <a href={`tel:${member.phone}`} className="text-gray-900 hover:text-gray-700">
+                                                {member.phone}
+                                            </a>
+                                        </div>
+                                    )}
+
                                     <div className="flex items-center justify-between">
-                                        <span className="text-gray-500">{t('team.table.phone')}:</span>
-                                        <a href={`tel:${member.phone}`} className="text-gray-900 hover:text-gray-700">
-                                            {member.phone}
+                                        <span className="text-gray-500">{t('team.table.email')}:</span>
+                                        <a href={`mailto:${member.email}`} className="text-gray-900 hover:text-gray-700 truncate ml-2">
+                                            {member.email}
                                         </a>
                                     </div>
-                                )}
+                                </div>
 
-                                <div className="flex items-center justify-between">
-                                    <span className="text-gray-500">{t('team.table.email')}:</span>
-                                    <a href={`mailto:${member.email}`} className="text-gray-900 hover:text-gray-700 truncate ml-2">
-                                        {member.email}
-                                    </a>
+                                <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+                                    {canManageMember(member) && (
+                                        <button
+                                            onClick={() => setSelectedMember(member)}
+                                            className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition flex items-center justify-center gap-2"
+                                        >
+                                            <PencilIcon className="h-4 w-4" />
+                                            <span className="hidden md:inline">{t('team.table.edit')}</span>
+                                        </button>
+                                    )}
+                                    {canManageMember(member) && (
+                                        <button
+                                            onClick={() => handleDeleteMember(member)}
+                                            className="flex-1 px-3 py-2 bg-red-50 text-red-600 text-sm font-medium rounded-lg hover:bg-red-100 transition flex items-center justify-center gap-2"
+                                        >
+                                            <TrashIcon className="h-4 w-4" />
+                                            <span className="hidden md:inline">{t('team.table.delete')}</span>
+                                        </button>
+                                    )}
                                 </div>
                             </div>
-
-                            <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
-                                {canManageMember(member) && (
-                                    <button
-                                        onClick={() => setSelectedMember(member)}
-                                        className="flex-1 px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-md hover:bg-gray-200 transition flex items-center justify-center"
-                                    >
-                                        <PencilIcon className="h-3 w-3 mr-1" />
-                                        {t('team.table.edit')}
-                                    </button>
-                                )}
-                                {canManageMember(member) && (
-                                    <button
-                                        onClick={() => handleDeleteMember(member)}
-                                        className="flex-1 px-3 py-1.5 bg-red-50 text-red-600 text-xs font-medium rounded-md hover:bg-red-100 transition flex items-center justify-center"
-                                    >
-                                        <TrashIcon className="h-3 w-3 mr-1" />
-                                        {t('team.table.delete')}
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
                 </div>
 
                 {/* Desktop Table View */}
-                <div className="hidden lg:block bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="hidden xl:block bg-white rounded-xl border border-gray-200 overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full">
                             <thead className="bg-gray-50">
                             <tr>
-                                <th className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     {t('team.table.employee')}
                                 </th>
-                                <th className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     {t('team.table.role')}
                                 </th>
-                                <th className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     {t('team.table.status')}
                                 </th>
-                                <th className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     {t('team.table.phone')}
                                 </th>
-                                <th className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     {t('team.table.email')}
                                 </th>
-                                <th className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     {t('team.table.actions')}
                                 </th>
                             </tr>
@@ -561,15 +563,15 @@ export default function Team(): JSX.Element {
                                                 <img
                                                     src={member.profile_picture_url}
                                                     alt={member.full_name}
-                                                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover"
+                                                    className="w-10 h-10 rounded-full object-cover"
                                                 />
                                             ) : (
-                                                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center text-white font-medium text-xs sm:text-sm">
+                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center text-white font-medium text-xs sm:text-sm">
                                                     {getInitials(member.full_name)}
                                                 </div>
                                             )}
                                             <div className="ml-2 sm:ml-3 md:ml-4">
-                                                <div className="text-xs sm:text-sm font-medium text-gray-900">{member.full_name}</div>
+                                                <div className="text-sm font-medium text-gray-900">{member.full_name}</div>
                                                 <div className="text-[10px] sm:text-xs md:text-sm text-gray-500">{t('team.table.since')} {new Date(member.created_at).toLocaleDateString()}</div>
                                             </div>
                                         </div>
@@ -589,14 +591,14 @@ export default function Team(): JSX.Element {
                                                 {member.is_active ? (
                                                     <span className="inline-flex items-center px-2 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-green-100 text-green-800 group-hover:bg-green-200 transition-colors cursor-pointer">
                                                     <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-green-500 mr-0.5 sm:mr-1"></span>
-                                                                                        {t('team.statusBadge.active')}
+                                                        {t('team.statusBadge.active')}
                                                     </span>
-                                                                                ) : (
-                                                                                    <span className="inline-flex items-center px-2 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-gray-100 text-gray-800 group-hover:bg-gray-200 transition-colors cursor-pointer">
+                                                ) : (
+                                                    <span className="inline-flex items-center px-2 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-gray-100 text-gray-800 group-hover:bg-gray-200 transition-colors cursor-pointer">
                                                     <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-gray-500 mr-0.5 sm:mr-1"></span>
-                                                                                        {t('team.statusBadge.inactive')}
+                                                        {t('team.statusBadge.inactive')}
                                                     </span>
-                                                                                )}
+                                                )}
                                             </button>
                                         ) : (
                                             <span className={`inline-flex items-center px-2 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-medium ${

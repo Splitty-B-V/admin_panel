@@ -486,31 +486,33 @@ export default function PaymentHistory() {
 
                     {/* Pagination */}
                     {totalPages > 1 && (
-                        <div className="px-4 py-3 border-t border-gray-200">
-                            <div className="flex items-center justify-between">
-                                <div className="text-sm text-gray-700">
+                        <div className="px-3 sm:px-4 py-3 border-t border-gray-200">
+                            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0">
+                                {/* Page info */}
+                                <div className="text-xs sm:text-sm text-gray-700 order-2 sm:order-1">
                                     {locale === 'nl'
                                         ? `Pagina ${currentPage} van ${totalPages} (${totalPayments} totaal)`
                                         : `Page ${currentPage} of ${totalPages} (${totalPayments} total)`}
                                 </div>
 
-                                <div className="flex items-center space-x-2">
+                                {/* Pagination controls */}
+                                <div className="flex items-center gap-2 order-1 sm:order-2">
                                     <button
                                         onClick={() => handlePageChange(currentPage - 1)}
                                         disabled={currentPage === 1 || loading}
-                                        className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="px-2 sm:px-3 py-1.5 sm:py-1 text-xs sm:text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                     >
                                         {locale === 'nl' ? 'Vorige' : 'Previous'}
                                     </button>
 
-                                    {/* Page numbers */}
-                                    <div className="flex space-x-1">
+                                    {/* Page numbers - desktop only */}
+                                    <div className="hidden sm:flex items-center gap-1">
                                         {/* Always show page 1 */}
                                         {currentPage > 3 && (
                                             <>
                                                 <button
                                                     onClick={() => handlePageChange(1)}
-                                                    className="w-8 h-8 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+                                                    className="w-8 h-8 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                                                 >
                                                     1
                                                 </button>
@@ -531,7 +533,7 @@ export default function PaymentHistory() {
                                                     <button
                                                         key={i}
                                                         onClick={() => handlePageChange(i)}
-                                                        className={`w-8 h-8 text-sm rounded-lg ${
+                                                        className={`w-8 h-8 text-sm rounded-lg transition-colors ${
                                                             currentPage === i
                                                                 ? 'bg-green-600 text-white'
                                                                 : 'border border-gray-300 hover:bg-gray-50'
@@ -550,7 +552,7 @@ export default function PaymentHistory() {
                                                 {currentPage < totalPages - 3 && <span className="px-2 text-gray-400">...</span>}
                                                 <button
                                                     onClick={() => handlePageChange(totalPages)}
-                                                    className="w-8 h-8 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+                                                    className="w-8 h-8 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                                                 >
                                                     {totalPages}
                                                 </button>
@@ -558,10 +560,17 @@ export default function PaymentHistory() {
                                         )}
                                     </div>
 
+                                    {/* Mobile - compact page indicator */}
+                                    <div className="sm:hidden flex items-center px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-200">
+                                        <span className="text-xs font-medium text-gray-700">
+                                            {currentPage} / {totalPages}
+                                        </span>
+                                    </div>
+
                                     <button
                                         onClick={() => handlePageChange(currentPage + 1)}
                                         disabled={currentPage === totalPages || loading}
-                                        className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="px-2 sm:px-3 py-1.5 sm:py-1 text-xs sm:text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                     >
                                         {locale === 'nl' ? 'Volgende' : 'Next'}
                                     </button>

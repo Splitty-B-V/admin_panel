@@ -43,7 +43,7 @@ const getNavigation = (t: (key: string) => string, user: any): NavigationItem[] 
         { name: t('nav.payments'), href: '/payouts', icon: CurrencyEuroIcon, adminOnly: true },
         {
           name: t('nav.management'),
-          href: '',
+          href: '#',
           icon: Cog6ToothIcon,
           adminOnly: true,
           submenu: [
@@ -204,7 +204,7 @@ const RestaurantLayout: React.FC<LayoutProps> = ({ children }) => {
           {/* Navigation */}
           <nav className="flex-1 py-6 overflow-y-auto">
             {getNavigation(t, user).map((item) => {
-              const isActive = isCurrentPath(item.href) ||
+              const isActive = (item.href && item.href !== '#' && isCurrentPath(item.href)) ||
                   (item.submenu && item.submenu.some(sub => isCurrentPath(sub.href)))
               const isExpanded = expandedMenu === item.name
 
@@ -214,7 +214,7 @@ const RestaurantLayout: React.FC<LayoutProps> = ({ children }) => {
                         onClick={() => {
                           if (item.submenu) {
                             setExpandedMenu(isExpanded ? null : item.name)
-                          } else if (item.href) {
+                          } else if (item.href && item.href !== '#') {
                             router.push(item.href)
                           }
                         }}
@@ -410,7 +410,7 @@ const RestaurantLayout: React.FC<LayoutProps> = ({ children }) => {
             {getNavigation(t, user).map((item) => {
               const isActive = item.submenu
                   ? item.submenu.some(sub => isCurrentPath(sub.href))
-                  : isCurrentPath(item.href)
+                  : (item.href && item.href !== '#' && isCurrentPath(item.href))
               const isExpanded = expandedMenu === item.name
 
               return (
@@ -419,7 +419,7 @@ const RestaurantLayout: React.FC<LayoutProps> = ({ children }) => {
                         onClick={() => {
                           if (item.submenu) {
                             setExpandedMenu(isExpanded ? null : item.name)
-                          } else if (item.href) {
+                          } else if (item.href && item.href !== '#') {
                             router.push(item.href)
                             setSidebarOpen(false)
                           }

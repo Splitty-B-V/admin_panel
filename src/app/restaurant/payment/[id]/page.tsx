@@ -20,7 +20,8 @@ import {
     ClipboardDocumentListIcon,
     UsersIcon,
 } from '@heroicons/react/24/outline'
-import {getPaymentDetails} from "@/lib/api";
+import {getPaymentDetails, downloadInvoice} from "@/lib/api";
+import RefundModal from "@/components/restaurant/payment/RefundModal";
 import SmartLayout from "@/components/common/SmartLayout";
 
 // TypeScript interfaces based on API response
@@ -111,6 +112,7 @@ const PaymentDetail: React.FC = () => {
     const [payment, setPayment] = useState<Payment | null>(null)
     const [loading, setLoading] = useState<boolean>(true)
     const [error, setError] = useState<string | null>(null)
+    const [isRefundModalOpen, setIsRefundModalOpen] = useState(false)
 
     useEffect(() => {
         document.title = 'Payment - Splitty'
@@ -457,11 +459,29 @@ const PaymentDetail: React.FC = () => {
                                 <div className="p-4 sm:p-6 space-y-3">
                                     {payment.status === 'completed' && (
                                         <>
-                                            <button className="w-full px-4 py-2.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium flex items-center justify-center">
+                                            <button
+                                                onClick={async () => {
+                                                    try {
+                                                        const blob = await downloadInvoice(payment.id)
+                                                        const url = URL.createObjectURL(blob)
+                                                        const link = document.createElement('a')
+                                                        link.href = url
+                                                        link.download = `invoice_${payment.id}.pdf`
+                                                        link.click()
+                                                        URL.revokeObjectURL(url)
+                                                    } catch (error) {
+                                                        console.error('Error downloading invoice:', error)
+                                                    }
+                                                }}
+                                                className="w-full px-4 py-2.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium flex items-center justify-center"
+                                            >
                                                 <DocumentTextIcon className="h-4 w-4 mr-2 flex-shrink-0" />
                                                 <span>{t("payment.downloadInvoice")}</span>
                                             </button>
-                                            <button className="w-full px-4 py-2.5 bg-orange-50 text-orange-700 rounded-lg hover:bg-orange-100 transition-colors text-sm font-medium">
+                                            <button
+                                                onClick={() => setIsRefundModalOpen(true)}
+                                                className="w-full px-4 py-2.5 bg-orange-50 text-orange-700 rounded-lg hover:bg-orange-100 transition-colors text-sm font-medium"
+                                            >
                                                 {t("payment.requestRefund")}
                                             </button>
                                         </>
@@ -483,6 +503,17 @@ const PaymentDetail: React.FC = () => {
                     </div>
                 </div>
             </div>
+            {payment && (
+                <RefundModal
+                    payment={payment}
+                    isOpen={isRefundModalOpen}
+                    onClose={() => setIsRefundModalOpen(false)}
+                    onSuccess={() => {
+                        // Перезагрузить данные payment
+                        window.location.reload()
+                    }}
+                />
+            )}
         </SmartLayout>
     )
 }

@@ -167,6 +167,18 @@ export async function getPaymentDetails(paymentId: string) {
     return apiRequest(`/restaurant_admin/payments/${paymentId}`)
 }
 
+export async function downloadInvoice(paymentId: string): Promise<Blob> {
+    const response = await fetch(`${API_BASE_URL}/restaurant_admin/payments/${paymentId}/invoice/download`, {
+        method: 'GET'
+    })
+
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    return response.blob()
+}
+
 export async function getActiveTablesList() {
     return apiRequest(`/restaurant_admin/active_tables`)
 }

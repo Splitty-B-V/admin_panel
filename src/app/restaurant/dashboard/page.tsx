@@ -842,7 +842,7 @@ const Dashboard: React.FC = () => {
                             {isAdmin && (
                                 <button
                                     onClick={() => router.push('/restaurant/payment-history')}
-                                    className="text-xs sm:text-sm text-green-600 hover:text-green-700 font-medium hidden xs:block"
+                                    className="text-xs sm:text-sm text-green-600 hover:text-green-700 font-medium"
                                 >
                                     {t('dashboard.recentPayments.viewAll')} →
                                 </button>
@@ -859,7 +859,7 @@ const Dashboard: React.FC = () => {
                                 <th className="px-2 xs:px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[10px] xs:text-xs font-medium text-gray-500 uppercase tracking-wider">{t('dashboard.recentPayments.status')}</th>
                                 <th className="px-2 xs:px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[10px] xs:text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">{t('dashboard.recentPayments.time')}</th>
                                 {isAdmin && (
-                                    <th className="px-2 xs:px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[10px] xs:text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">{t('dashboard.recentPayments.actions')}</th>
+                                    <th className="px-2 xs:px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[10px] xs:text-xs font-medium text-gray-500 uppercase tracking-wider ">{t('dashboard.recentPayments.actions')}</th>
                                 )}
                             </tr>
                             </thead>
@@ -917,20 +917,20 @@ const Dashboard: React.FC = () => {
                                             }) : '-'}
                                         </td>
                                         {isAdmin && (
-                                            <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 whitespace-nowrap text-sm hidden md:table-cell">
+                                            <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 whitespace-nowrap text-sm ">
                                                 <div className="flex gap-1.5 items-center">
                                                     <button
                                                         onClick={() => router.push(`/restaurant/order/${payment.orderNumber}`)}
                                                         className="font-medium text-xs text-green-600 hover:text-green-700"
                                                     >
-                                                        {t('dashboard.recentPayments.order')}
+                                                        <span className="hidden md:inline">{t('dashboard.recentPayments.order')}</span><span className="md:hidden">O</span>
                                                     </button>
                                                     <span className="text-gray-300 text-xs">|</span>
                                                     <button
                                                         onClick={() => router.push(`/restaurant/payment/${payment.id}`)}
                                                         className="font-medium text-xs text-green-600 hover:text-green-700"
                                                     >
-                                                        {t('dashboard.recentPayments.payment')}
+                                                        <span className="hidden md:inline">{t('dashboard.recentPayments.payment')}</span><span className="md:hidden">P</span>
                                                     </button>
                                                 </div>
                                             </td>

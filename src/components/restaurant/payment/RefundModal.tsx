@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { XMarkIcon, ExclamationTriangleIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
 import { useLanguage } from '@/contexts/LanguageContext'
 import {env} from "@/lib/env";
@@ -9,6 +9,8 @@ interface Payment {
     id: string
     totalCharged: number
     splittyFee: number
+    totalRefunded?: number
+    remainingRefundable?: number
 }
 
 interface RefundModalProps {
@@ -28,24 +30,38 @@ function getAuthHeaders() {
 
 export default function RefundModal({ payment, isOpen, onClose, onSuccess }: RefundModalProps) {
     const { t } = useLanguage()
-    const maxRefundable = payment.totalCharged - payment.splittyFee
-    const [amount, setAmount] = useState(maxRefundable)
-    const [reason, setReason] = useState('')
+
+    const REFUND_REASONS = [
+        { value: 'requested_by_customer', label: t('refund.reasons.requested_by_customer') },
+        { value: 'duplicate', label: t('refund.reasons.duplicate') },
+        { value: 'fraudulent', label: t('refund.reasons.fraudulent') }
+    ] as const
+
+    // Безопасный расчет maxRefundable с явным приведением к числу
+    const maxRefundable = Number(
+        payment.remainingRefundable ??
+        (payment.totalCharged - payment.splittyFee - (payment.totalRefunded ?? 0))
+    )
+
+    const [amount, setAmount] = useState(0)
+    const [reason, setReason] = useState<string>('requested_by_customer')
+    const [notes, setNotes] = useState('')
     const [isProcessing, setIsProcessing] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState(false)
 
+    // Устанавливаем amount когда модал открывается
+    useEffect(() => {
+        if (isOpen && maxRefundable > 0) {
+            setAmount(maxRefundable)
+        }
+    }, [isOpen, maxRefundable])
+
     const handleRefund = async () => {
-        // Reset states
         setError(null)
         setSuccess(false)
 
         // Validation
-        if (!reason.trim()) {
-            setError(t('refund.error.reasonRequired'))
-            return
-        }
-
         if (amount <= 0 || amount > maxRefundable) {
             setError(t('refund.error.invalidAmount'))
             return
@@ -53,8 +69,7 @@ export default function RefundModal({ payment, isOpen, onClose, onSuccess }: Ref
 
         setIsProcessing(true)
 
-        const API_BASE_URL = `http://${env.apiUrl}/${env.apiVersion}`
-        const token = localStorage.getItem('auth_token')
+        const API_BASE_URL = `https://${env.apiUrl}/${env.apiVersion}`
 
         try {
             const response = await fetch(
@@ -64,7 +79,8 @@ export default function RefundModal({ payment, isOpen, onClose, onSuccess }: Ref
                     headers: getAuthHeaders(),
                     body: JSON.stringify({
                         amount: amount,
-                        reason: reason
+                        reason: reason,
+                        notes: notes.trim() || null
                     })
                 }
             )
@@ -79,7 +95,6 @@ export default function RefundModal({ payment, isOpen, onClose, onSuccess }: Ref
 
             setSuccess(true)
 
-            // Wait a bit to show success message, then close
             setTimeout(() => {
                 onSuccess()
                 onClose()
@@ -97,6 +112,9 @@ export default function RefundModal({ payment, isOpen, onClose, onSuccess }: Ref
         if (!isProcessing) {
             setError(null)
             setSuccess(false)
+            setAmount(0)
+            setReason('requested_by_customer')
+            setNotes('')
             onClose()
         }
     }
@@ -106,15 +124,12 @@ export default function RefundModal({ payment, isOpen, onClose, onSuccess }: Ref
     return (
         <div className="fixed inset-0 z-50 overflow-y-auto">
             <div className="flex min-h-screen items-center justify-center p-4">
-                {/* Overlay */}
                 <div
                     className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
                     onClick={handleClose}
                 />
 
-                {/* Modal */}
                 <div className="relative bg-white rounded-xl shadow-2xl max-w-lg w-full p-6">
-                    {/* Header */}
                     <div className="flex items-center justify-between mb-6">
                         <h3 className="text-xl font-bold text-gray-900">
                             {t('refund.title')}
@@ -128,7 +143,6 @@ export default function RefundModal({ payment, isOpen, onClose, onSuccess }: Ref
                         </button>
                     </div>
 
-                    {/* Success Message */}
                     {success && (
                         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
                             <div className="flex items-start">
@@ -147,7 +161,6 @@ export default function RefundModal({ payment, isOpen, onClose, onSuccess }: Ref
 
                     {!success && (
                         <>
-                            {/* Warning */}
                             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
                                 <div className="flex">
                                     <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
@@ -162,7 +175,6 @@ export default function RefundModal({ payment, isOpen, onClose, onSuccess }: Ref
                                 </div>
                             </div>
 
-                            {/* Amount breakdown */}
                             <div className="bg-gray-50 rounded-lg p-4 mb-6">
                                 <h4 className="text-sm font-medium text-gray-700 mb-3">
                                     {t('refund.breakdown.title')}
@@ -170,19 +182,25 @@ export default function RefundModal({ payment, isOpen, onClose, onSuccess }: Ref
                                 <dl className="space-y-2">
                                     <div className="flex justify-between text-sm">
                                         <dt className="text-gray-600">{t('refund.breakdown.totalPaid')}</dt>
-                                        <dd className="font-medium text-gray-900">€{payment.totalCharged.toFixed(2)}</dd>
+                                        <dd className="font-medium text-gray-900">€{Number(payment.totalCharged).toFixed(2)}</dd>
                                     </div>
                                     <div className="flex justify-between text-sm">
                                         <dt className="text-gray-600">{t('refund.breakdown.splittyFee')}</dt>
-                                        <dd className="font-medium text-orange-600">-€{payment.splittyFee.toFixed(2)}</dd>
+                                        <dd className="font-medium text-orange-600">-€{Number(payment.splittyFee).toFixed(2)}</dd>
                                     </div>
+                                    {payment.totalRefunded && payment.totalRefunded > 0 && (
+                                        <div className="flex justify-between text-sm">
+                                            <dt className="text-gray-600">{t('refund.breakdown.alreadyRefunded')}</dt>
+                                            <dd className="font-medium text-red-600">-€{Number(payment.totalRefunded).toFixed(2)}</dd>
+                                        </div>
+                                    )}
                                     <div className="pt-2 border-t border-gray-200">
                                         <div className="flex justify-between">
                                             <dt className="text-sm font-semibold text-gray-900">
                                                 {t('refund.breakdown.maxRefundable')}
                                             </dt>
                                             <dd className="text-base font-bold text-green-600">
-                                                €{maxRefundable.toFixed(2)}
+                                                €{Number(maxRefundable).toFixed(2)}
                                             </dd>
                                         </div>
                                     </div>
@@ -212,29 +230,49 @@ export default function RefundModal({ payment, isOpen, onClose, onSuccess }: Ref
                                 </p>
                             </div>
 
-                            {/* Reason input */}
-                            <div className="mb-6">
+                            {/* Reason select */}
+                            <div className="mb-4">
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     {t('refund.form.reason.label')} *
                                 </label>
-                                <textarea
+                                <select
                                     value={reason}
                                     onChange={(e) => setReason(e.target.value)}
-                                    placeholder={t('refund.form.reason.placeholder')}
-                                    rows={3}
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed"
                                     disabled={isProcessing}
-                                />
+                                >
+                                    {REFUND_REASONS.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
 
-                            {/* Error message */}
+                            {/* Notes textarea */}
+                            <div className="mb-6">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    {t('refund.form.notes.label')}
+                                </label>
+                                <textarea
+                                    value={notes}
+                                    onChange={(e) => setNotes(e.target.value)}
+                                    placeholder={t('refund.form.notes.placeholder')}
+                                    rows={3}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed resize-none"
+                                    disabled={isProcessing}
+                                />
+                                <p className="mt-1 text-xs text-gray-500">
+                                    {t('refund.form.notes.hint')}
+                                </p>
+                            </div>
+
                             {error && (
                                 <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
                                     <p className="text-sm text-red-700">{error}</p>
                                 </div>
                             )}
 
-                            {/* Actions */}
                             <div className="flex gap-3">
                                 <button
                                     onClick={handleClose}
@@ -245,7 +283,7 @@ export default function RefundModal({ payment, isOpen, onClose, onSuccess }: Ref
                                 </button>
                                 <button
                                     onClick={handleRefund}
-                                    disabled={isProcessing || !reason.trim() || amount <= 0 || amount > maxRefundable}
+                                    disabled={isProcessing || amount <= 0 || amount > maxRefundable}
                                     className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                                 >
                                     {isProcessing ? t('refund.actions.processing') : t('refund.actions.confirm')}

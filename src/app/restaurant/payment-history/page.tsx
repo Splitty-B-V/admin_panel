@@ -18,7 +18,7 @@ interface Payment {
     tableNumber: number
     amount: number
     tip: number
-    status: 'completed' | 'pending' | 'failed'
+    status: 'completed' | 'pending' | 'failed' | 'refunded'
     paymentMethod: string
     timestamp: string
     orderNumber: number
@@ -47,7 +47,7 @@ export default function PaymentHistory() {
     const [payments, setPayments] = useState<ProcessedPayment[]>([])
     const [searchTerm, setSearchTerm] = useState('')
     const [debouncedSearch, setDebouncedSearch] = useState('')
-    const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'pending' | 'failed'>('all')
+    const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'pending' | 'failed' | 'refunded'>('all')
     const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month' | 'quarter'>('all')
     const [showFilters, setShowFilters] = useState(false)
     const [currentPage, setCurrentPage] = useState(1)
@@ -75,9 +75,10 @@ export default function PaymentHistory() {
         const date = new Date(payment.timestamp)
 
         const statusLabels = {
-            completed: locale === 'nl' ? 'Voltooid' : 'Completed',
-            pending: locale === 'nl' ? 'In afwachting' : 'Pending',
-            failed: locale === 'nl' ? 'Mislukt' : 'Failed'
+            completed: t('paymentHistory.status.completed'),
+            pending: t('paymentHistory.status.pending'),
+            failed: t('paymentHistory.status.failed'),
+            refunded: t('paymentHistory.status.refunded')
         }
 
         return {
@@ -95,7 +96,7 @@ export default function PaymentHistory() {
                 minute: '2-digit'
             })
         }
-    }, [locale])
+    }, [locale, t])
 
     // Calculate date range for API
     const getDateRange = useCallback(() => {
@@ -153,11 +154,11 @@ export default function PaymentHistory() {
             setPayments(processedPayments)
             setTotalPayments(response.total)
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to load payments')
+            setError(err instanceof Error ? err.message : t('paymentHistory.error.loadFailed'))
         } finally {
             setLoading(false)
         }
-    }, [debouncedSearch, statusFilter, getDateRange, processPayment])
+    }, [debouncedSearch, statusFilter, getDateRange, processPayment, t])
 
     // Effects
     useEffect(() => {
@@ -218,7 +219,7 @@ export default function PaymentHistory() {
             a.click()
             window.URL.revokeObjectURL(url)
         } catch (err) {
-            setError('Failed to export payments')
+            setError(t('paymentHistory.error.exportFailed'))
         } finally {
             setLoading(false)
         }
@@ -236,7 +237,7 @@ export default function PaymentHistory() {
                     <div className="flex items-center justify-center h-64">
                         <div className="text-center">
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
-                            <p className="text-gray-600">Loading payments...</p>
+                            <p className="text-gray-600">{t('paymentHistory.loading')}</p>
                         </div>
                     </div>
                 </div>
@@ -256,7 +257,7 @@ export default function PaymentHistory() {
                                 onClick={() => fetchPayments(1)}
                                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                             >
-                                Retry
+                                {t('common.retry')}
                             </button>
                         </div>
                     </div>
@@ -275,23 +276,18 @@ export default function PaymentHistory() {
                         className="flex items-center text-gray-600 hover:text-gray-900 transition-colors mb-4"
                     >
                         <ChevronLeftIcon className="h-5 w-5 mr-2" />
-                        {locale === 'nl' ? 'Terug naar dashboard' : 'Back to dashboard'}
+                        {t('paymentHistory.backToDashboard')}
                     </button>
 
                     <div className="flex items-center justify-between">
                         <div>
                             <h1 className="text-2xl font-bold text-gray-900">
-                                {locale === 'nl' ? 'Betalingsgeschiedenis' : 'Payment History'}
+                                {t('paymentHistory.title')}
                             </h1>
                             <p className="text-gray-600 mt-1">
                                 {totalPayments > 0 && (
                                     <>
-                                        {locale === 'nl' ? `${totalPayments} transacties` : `${totalPayments} transactions`}
-                                        {/*{hasActiveFilters && (*/}
-                                        {/*    <span className="text-green-600">*/}
-                                        {/*        {' '}({locale === 'nl' ? 'gefilterd' : 'filtered'})*/}
-                                        {/*    </span>*/}
-                                        {/*)}*/}
+                                        {t('paymentHistory.totalTransactions', { count: totalPayments })}
                                     </>
                                 )}
                             </p>
@@ -303,7 +299,7 @@ export default function PaymentHistory() {
                             className="px-4 py-2 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
-                            {locale === 'nl' ? 'Exporteren' : 'Export'}
+                            {t('paymentHistory.export')}
                         </button>
                     </div>
                 </div>
@@ -316,7 +312,7 @@ export default function PaymentHistory() {
                             <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                             <input
                                 type="text"
-                                placeholder={locale === 'nl' ? 'Zoek betaling, tafel of bestelling...' : 'Search payment, table or order...'}
+                                placeholder={t('paymentHistory.searchPlaceholder')}
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
@@ -334,7 +330,7 @@ export default function PaymentHistory() {
                             className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 transition flex items-center"
                         >
                             <FunnelIcon className="h-4 w-4 mr-1.5 text-gray-400" />
-                            {locale === 'nl' ? 'Filters' : 'Filters'}
+                            {t('paymentHistory.filters')}
                             {(statusFilter !== 'all' || dateFilter !== 'all') && (
                                 <span className="ml-1.5 bg-green-50 text-green-700 text-xs px-1.5 py-0.5 rounded-full">
                                     {[statusFilter !== 'all', dateFilter !== 'all'].filter(Boolean).length}
@@ -348,34 +344,35 @@ export default function PaymentHistory() {
                         <div className="mt-4 pt-4 border-t grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Status
+                                    {t('paymentHistory.filterStatus')}
                                 </label>
                                 <select
                                     value={statusFilter}
                                     onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
                                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500"
                                 >
-                                    <option value="all">{locale === 'nl' ? 'Alle' : 'All'}</option>
-                                    <option value="completed">{locale === 'nl' ? 'Voltooid' : 'Completed'}</option>
-                                    <option value="pending">{locale === 'nl' ? 'In afwachting' : 'Pending'}</option>
-                                    <option value="failed">{locale === 'nl' ? 'Mislukt' : 'Failed'}</option>
+                                    <option value="all">{t('paymentHistory.filterAll')}</option>
+                                    <option value="completed">{t('paymentHistory.status.completed')}</option>
+                                    <option value="pending">{t('paymentHistory.status.pending')}</option>
+                                    <option value="failed">{t('paymentHistory.status.failed')}</option>
+                                    <option value="refunded">{t('paymentHistory.status.refunded')}</option>
                                 </select>
                             </div>
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    {locale === 'nl' ? 'Periode' : 'Period'}
+                                    {t('paymentHistory.filterPeriod')}
                                 </label>
                                 <select
                                     value={dateFilter}
                                     onChange={(e) => setDateFilter(e.target.value as typeof dateFilter)}
                                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500"
                                 >
-                                    <option value="all">{locale === 'nl' ? 'Alle' : 'All'}</option>
-                                    <option value="today">{locale === 'nl' ? 'Vandaag' : 'Today'}</option>
-                                    <option value="week">{locale === 'nl' ? 'Deze week' : 'This week'}</option>
-                                    <option value="month">{locale === 'nl' ? 'Deze maand' : 'This month'}</option>
-                                    <option value="quarter">{locale === 'nl' ? 'Dit kwartaal' : 'This quarter'}</option>
+                                    <option value="all">{t('paymentHistory.filterAll')}</option>
+                                    <option value="today">{t('paymentHistory.period.today')}</option>
+                                    <option value="week">{t('paymentHistory.period.week')}</option>
+                                    <option value="month">{t('paymentHistory.period.month')}</option>
+                                    <option value="quarter">{t('paymentHistory.period.quarter')}</option>
                                 </select>
                             </div>
                         </div>
@@ -403,22 +400,22 @@ export default function PaymentHistory() {
                             <thead className="bg-gray-50 border-b border-gray-200">
                             <tr>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    {locale === 'nl' ? 'Betaling' : 'Payment'}
+                                    {t('paymentHistory.table.payment')}
                                 </th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
-                                    {locale === 'nl' ? 'Tafel' : 'Table'}
+                                    {t('paymentHistory.table.table')}
                                 </th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    {locale === 'nl' ? 'Bedrag' : 'Amount'}
+                                    {t('paymentHistory.table.amount')}
                                 </th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Status
+                                    {t('paymentHistory.table.status')}
                                 </th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
-                                    {locale === 'nl' ? 'Datum' : 'Date'}
+                                    {t('paymentHistory.table.date')}
                                 </th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">
-                                    {locale === 'nl' ? 'Acties' : 'Actions'}
+                                    {t('paymentHistory.table.actions')}
                                 </th>
                             </tr>
                             </thead>
@@ -426,7 +423,7 @@ export default function PaymentHistory() {
                             {payments.length === 0 ? (
                                 <tr>
                                     <td colSpan={6} className="px-4 py-12 text-center text-gray-500">
-                                        {locale === 'nl' ? 'Geen betalingen gevonden' : 'No payments found'}
+                                        {t('paymentHistory.noPayments')}
                                     </td>
                                 </tr>
                             ) : (
@@ -444,7 +441,7 @@ export default function PaymentHistory() {
                                                     €{payment.total.toFixed(2)}
                                                 </p>
                                                 <p className="text-xs text-gray-500">
-                                                    {locale === 'nl' ? 'Fooi' : 'Tip'}: €{payment.tip.toFixed(2)}
+                                                    {t('paymentHistory.tip')}: €{payment.tip.toFixed(2)}
                                                 </p>
                                             </div>
                                         </td>
@@ -452,7 +449,8 @@ export default function PaymentHistory() {
                                                 <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                                                     payment.status === 'completed' ? 'bg-green-100 text-green-800' :
                                                         payment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                                            'bg-red-100 text-red-800'
+                                                            payment.status === 'refunded' ? 'bg-gray-100 text-gray-800' :
+                                                                'bg-red-100 text-red-800'
                                                 }`}>
                                                     {payment.statusLabel}
                                                 </span>
@@ -466,14 +464,14 @@ export default function PaymentHistory() {
                                                     onClick={() => router.push(`/restaurant/order/${payment.orderNumber}`)}
                                                     className="text-green-600 hover:text-green-700 font-medium"
                                                 >
-                                                    {locale === 'nl' ? 'Bestelling' : 'Order'}
+                                                    {t('paymentHistory.viewOrder')}
                                                 </button>
                                                 <span className="text-gray-300">|</span>
                                                 <button
                                                     onClick={() => router.push(`/restaurant/payment/${payment.id}`)}
                                                     className="text-green-600 hover:text-green-700 font-medium"
                                                 >
-                                                    {locale === 'nl' ? 'Details' : 'Details'}
+                                                    {t('paymentHistory.viewDetails')}
                                                 </button>
                                             </div>
                                         </td>
@@ -490,9 +488,11 @@ export default function PaymentHistory() {
                             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0">
                                 {/* Page info */}
                                 <div className="text-xs sm:text-sm text-gray-700 order-2 sm:order-1">
-                                    {locale === 'nl'
-                                        ? `Pagina ${currentPage} van ${totalPages} (${totalPayments} totaal)`
-                                        : `Page ${currentPage} of ${totalPages} (${totalPayments} total)`}
+                                    {t('paymentHistory.pagination.info', {
+                                        current: currentPage,
+                                        total: totalPages,
+                                        count: totalPayments
+                                    })}
                                 </div>
 
                                 {/* Pagination controls */}
@@ -502,7 +502,7 @@ export default function PaymentHistory() {
                                         disabled={currentPage === 1 || loading}
                                         className="px-2 sm:px-3 py-1.5 sm:py-1 text-xs sm:text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                     >
-                                        {locale === 'nl' ? 'Vorige' : 'Previous'}
+                                        {t('paymentHistory.pagination.previous')}
                                     </button>
 
                                     {/* Page numbers - desktop only */}
@@ -572,7 +572,7 @@ export default function PaymentHistory() {
                                         disabled={currentPage === totalPages || loading}
                                         className="px-2 sm:px-3 py-1.5 sm:py-1 text-xs sm:text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                     >
-                                        {locale === 'nl' ? 'Volgende' : 'Next'}
+                                        {t('paymentHistory.pagination.next')}
                                     </button>
                                 </div>
                             </div>

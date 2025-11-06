@@ -38,7 +38,7 @@ function getAuthHeaders() {
     }
 }
 
-const API_BASE_URL = `https://${env.apiUrl}/${env.apiVersion}`
+const API_BASE_URL = `http://${env.apiUrl}/${env.apiVersion}`
 
 // Unified API request handler
 async function apiRequest(url: string, options: RequestInit = {}) {
@@ -386,6 +386,7 @@ export default function SuperAdminOnboardingPage() {
                     <SummaryStep
                         restaurantId={restaurantId}
                         restaurant={restaurant}
+                        progress={progress}  // Pass progress here
                         onComplete={() => handleCompleteOnboarding()}
                         onSkip={() => handleSkipStep(8)}
                         saving={saving}

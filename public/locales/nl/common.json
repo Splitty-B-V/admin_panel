@@ -1544,5 +1544,19 @@
   "paymentHistory.pagination.next": "Volgende",
   "paymentHistory.error.loadFailed": "Betalingen laden mislukt",
   "paymentHistory.error.exportFailed": "Exporteren mislukt",
-  "common.retry": "Opnieuw proberen"
+  "common.retry": "Opnieuw proberen",
+  "onboarding.summary.preview.title": "E-mail forhåndsvisning",
+  "onboarding.summary.selectItems": "Vælg elementer, der er gennemført under onboarding:",
+  "onboarding.sidebar.archive.button": "Arkiver restaurant",
+  "onboarding.sidebar.archive.hint": "Stop onboarding for denne restaurant",
+  "onboarding.sidebar.archive.modal.title": "Arkiver restaurant",
+  "onboarding.sidebar.archive.modal.subtitle": "Stop onboarding-proces",
+  "onboarding.sidebar.archive.modal.description": "Er du sikker på, at du vil arkivere {{name}}? Du kan gendanne den senere, hvis det er nødvendigt.",
+  "onboarding.sidebar.archive.modal.warning.title": "Hvad sker der, når du arkiverer?",
+  "onboarding.sidebar.archive.modal.warning.description": "Restauranten flyttes til arkiveret status. Du kan gendanne den når som helst fra restaurantlisten.",
+  "onboarding.sidebar.archive.modal.confirm": "Arkiver restaurant",
+  "onboarding.sidebar.archive.archiving": "Arkiverer...",
+  "onboarding.sidebar.archive.error": "Kunne ikke arkivere restaurant",
+  "onboarding.qr.sections.floorPlan": "Plantegning (Valgfri)",
+  "onboarding.qr.sections.uploadFloorPlan": "Upload plantegning (JPG, PNG, PDF)"
 }

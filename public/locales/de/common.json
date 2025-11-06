@@ -1543,5 +1543,19 @@
   "paymentHistory.pagination.next": "Weiter",
   "paymentHistory.error.loadFailed": "Zahlungen konnten nicht geladen werden",
   "paymentHistory.error.exportFailed": "Export fehlgeschlagen",
-  "common.retry": "Erneut versuchen"
+  "common.retry": "Erneut versuchen",
+  "onboarding.summary.preview.title": "E-Mail-Vorschau",
+  "onboarding.summary.selectItems": "Wählen Sie die während des Onboardings abgeschlossenen Punkte aus:",
+  "onboarding.sidebar.archive.button": "Restaurant archivieren",
+  "onboarding.sidebar.archive.hint": "Onboarding für dieses Restaurant stoppen",
+  "onboarding.sidebar.archive.modal.title": "Restaurant archivieren",
+  "onboarding.sidebar.archive.modal.subtitle": "Onboarding-Prozess stoppen",
+  "onboarding.sidebar.archive.modal.description": "Möchten Sie {{name}} wirklich archivieren? Sie können es später bei Bedarf wiederherstellen.",
+  "onboarding.sidebar.archive.modal.warning.title": "Was passiert beim Archivieren?",
+  "onboarding.sidebar.archive.modal.warning.description": "Das Restaurant wird in den archivierten Status verschoben. Sie können es jederzeit aus der Restaurantliste wiederherstellen.",
+  "onboarding.sidebar.archive.modal.confirm": "Restaurant archivieren",
+  "onboarding.sidebar.archive.archiving": "Wird archiviert...",
+  "onboarding.sidebar.archive.error": "Restaurant konnte nicht archiviert werden",
+  "onboarding.qr.sections.floorPlan": "Grundriss (Optional)",
+  "onboarding.qr.sections.uploadFloorPlan": "Grundriss hochladen (JPG, PNG, PDF)"
 }

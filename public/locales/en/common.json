@@ -1544,5 +1544,19 @@
   "paymentHistory.pagination.next": "Next",
   "paymentHistory.error.loadFailed": "Failed to load payments",
   "paymentHistory.error.exportFailed": "Failed to export payments",
-  "common.retry": "Retry"
+  "common.retry": "Retry",
+  "onboarding.summary.preview.title": "Email Preview",
+  "onboarding.summary.selectItems": "Select items completed during onboarding:",
+  "onboarding.sidebar.archive.button": "Archive Restaurant",
+  "onboarding.sidebar.archive.hint": "Stop onboarding for this restaurant",
+  "onboarding.sidebar.archive.modal.title": "Archive Restaurant",
+  "onboarding.sidebar.archive.modal.subtitle": "Stop onboarding process",
+  "onboarding.sidebar.archive.modal.description": "Are you sure you want to archive {{name}}? You can restore it later if needed.",
+  "onboarding.sidebar.archive.modal.warning.title": "What happens when you archive?",
+  "onboarding.sidebar.archive.modal.warning.description": "The restaurant will be moved to archived status. You can restore it anytime from the restaurants list.",
+  "onboarding.sidebar.archive.modal.confirm": "Archive Restaurant",
+  "onboarding.sidebar.archive.archiving": "Archiving...",
+  "onboarding.sidebar.archive.error": "Failed to archive restaurant",
+  "onboarding.qr.sections.floorPlan": "Floor Plan (Optional)",
+  "onboarding.qr.sections.uploadFloorPlan": "Upload floor plan (JPG, PNG, PDF)"
 }

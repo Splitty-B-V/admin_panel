@@ -4,8 +4,14 @@ import {
     BuildingStorefrontIcon,
     CheckCircleIcon,
     RocketLaunchIcon,
+    ArchiveBoxIcon,
+    ArrowPathIcon,
+    ExclamationTriangleIcon,
+    XMarkIcon
 } from '@heroicons/react/24/outline'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { useState } from 'react'
+import {env} from "@/lib/env";
 
 interface OnboardingStep {
     id: number
@@ -24,6 +30,95 @@ interface OnboardingSidebarProps {
     onWelcomeClick: () => void
     steps: OnboardingStep[]
     getStepStatus: (stepId: number) => StepStatus
+    onArchive?: () => void
+}
+
+const API_BASE_URL = `http://${env.apiUrl}/${env.apiVersion}`
+
+// Helper function to get auth headers
+function getAuthHeaders() {
+    const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token')
+    return {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+    }
+}
+
+// Archive Confirmation Modal Component
+const ArchiveModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    restaurant: any;
+    onConfirm: () => void;
+    isArchiving: boolean;
+}> = ({ isOpen, onClose, restaurant, onConfirm, isArchiving }) => {
+    const { t } = useLanguage()
+
+    if (!isOpen || !restaurant) return null
+
+    return (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl p-6 max-w-lg w-full mx-4">
+                <div className="flex items-center mb-6">
+                    <div className="p-3 rounded-full bg-yellow-100">
+                        <ArchiveBoxIcon className="h-6 w-6 text-yellow-600" />
+                    </div>
+                    <div className="ml-4">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                            {t('onboarding.sidebar.archive.modal.title')}
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                            {t('onboarding.sidebar.archive.modal.subtitle')}
+                        </p>
+                    </div>
+                </div>
+
+                <div className="mb-6">
+                    <p className="text-gray-600 mb-4">
+                        {t('onboarding.sidebar.archive.modal.description', { name: restaurant.name })}
+                    </p>
+
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                        <div className="flex">
+                            <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400 mr-3 mt-0.5" />
+                            <div>
+                                <h4 className="text-sm font-medium text-yellow-800 mb-1">
+                                    {t('onboarding.sidebar.archive.modal.warning.title')}
+                                </h4>
+                                <p className="text-sm text-yellow-700">
+                                    {t('onboarding.sidebar.archive.modal.warning.description')}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex gap-3">
+                    <button
+                        onClick={onClose}
+                        disabled={isArchiving}
+                        className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
+                    >
+                        {t('common.cancel')}
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        disabled={isArchiving}
+                        className="flex-1 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-medium transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                    >
+                        {isArchiving ? (
+                            <>
+                                <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
+                                {t('onboarding.sidebar.archive.archiving')}
+                            </>
+                        ) : (
+                            t('onboarding.sidebar.archive.modal.confirm')
+                        )}
+                    </button>
+                </div>
+            </div>
+        </div>
+    )
 }
 
 export default function OnboardingSidebar({
@@ -33,9 +128,12 @@ export default function OnboardingSidebar({
                                               onStepClick,
                                               onWelcomeClick,
                                               steps,
-                                              getStepStatus
+                                              getStepStatus,
+                                              onArchive
                                           }: OnboardingSidebarProps) {
     const { t } = useLanguage()
+    const [isArchiving, setIsArchiving] = useState(false)
+    const [showArchiveModal, setShowArchiveModal] = useState(false)
 
     // Calculate completed steps (8 total)
     const completedStepsCount = progress ? [
@@ -51,6 +149,42 @@ export default function OnboardingSidebar({
 
     const totalSteps = 8
     const progressPercentage = (completedStepsCount / totalSteps) * 100
+
+    const handleArchive = async () => {
+        try {
+            setIsArchiving(true)
+
+            const response = await fetch(`${API_BASE_URL}/super_admin/restaurants/${restaurant.id}/archive`, {
+                method: 'PATCH',
+                headers: getAuthHeaders()
+            })
+
+            if (response.status === 401) {
+                localStorage.removeItem('auth_token')
+                sessionStorage.removeItem('auth_token')
+                window.location.href = '/login'
+                return
+            }
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}))
+                throw new Error(errorData.detail || 'Failed to archive restaurant')
+            }
+
+            // Success - redirect to restaurants list
+            if (onArchive) {
+                onArchive()
+            } else {
+                window.location.href = '/admin/restaurants'
+            }
+        } catch (error) {
+            console.error('Failed to archive restaurant:', error)
+            alert(t('onboarding.sidebar.archive.error') || 'Failed to archive restaurant')
+        } finally {
+            setIsArchiving(false)
+            setShowArchiveModal(false)
+        }
+    }
 
     return (
         <div className="w-80 bg-gray-50 border-r border-gray-200 flex flex-col">
@@ -185,8 +319,32 @@ export default function OnboardingSidebar({
                             </button>
                         )
                     })}
+
+                    {/* Archive Button - Below Summary Step */}
+                    <div className="mt-4 pt-3 border-t border-gray-200">
+                        <button
+                            onClick={() => setShowArchiveModal(true)}
+                            disabled={isArchiving}
+                            className="w-full px-4 py-3 bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 transition text-sm font-medium disabled:opacity-50 flex items-center justify-center border border-yellow-200"
+                        >
+                            <ArchiveBoxIcon className="h-5 w-5 mr-2" />
+                            {t('onboarding.sidebar.archive.button')}
+                        </button>
+                        <p className="text-xs text-gray-500 text-center mt-2">
+                            {t('onboarding.sidebar.archive.hint')}
+                        </p>
+                    </div>
                 </div>
             </div>
+
+            {/* Archive Confirmation Modal */}
+            <ArchiveModal
+                isOpen={showArchiveModal}
+                onClose={() => setShowArchiveModal(false)}
+                restaurant={restaurant}
+                onConfirm={handleArchive}
+                isArchiving={isArchiving}
+            />
         </div>
     )
 }

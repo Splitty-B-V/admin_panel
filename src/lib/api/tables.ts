@@ -1,7 +1,7 @@
 import { env } from "@/lib/env"
 import { Table } from "./sections"
 
-const API_BASE_URL = `http://${env.apiUrl}/${env.apiVersion}`
+const API_BASE_URL = `https://${env.apiUrl}/${env.apiVersion}`
 
 function getAuthHeaders() {
     const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token')

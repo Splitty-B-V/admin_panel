@@ -6,7 +6,7 @@
 import {env} from "@/lib/env";
 
 export const BASE_URL = `${env.apiUrl}/${env.apiVersion}`
-const API_BASE_URL = `http://${env.apiUrl}/${env.apiVersion}`
+const API_BASE_URL = `https://${env.apiUrl}/${env.apiVersion}`
 
 // Base API function from existing api.ts
 async function apiRequest<T>(

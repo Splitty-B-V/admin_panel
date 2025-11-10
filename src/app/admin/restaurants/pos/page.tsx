@@ -19,7 +19,7 @@ import {
     MagnifyingGlassIcon
 } from '@heroicons/react/24/outline'
 
-const API_BASE_URL = `http://${env.apiUrl}/${env.apiVersion}`
+const API_BASE_URL = `https://${env.apiUrl}/${env.apiVersion}`
 
 // Helper function to get auth headers
 function getAuthHeaders() {

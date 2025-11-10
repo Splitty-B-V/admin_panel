@@ -191,20 +191,20 @@ export default function Login() {
                             </div>
                         </div>
 
-                        {/*<div className="flex items-center justify-between">*/}
-                        {/*    <label className="flex items-center cursor-pointer">*/}
-                        {/*        <input*/}
-                        {/*            type="checkbox"*/}
-                        {/*            checked={rememberMe}*/}
-                        {/*            onChange={(e) => setRememberMe(e.target.checked)}*/}
-                        {/*            className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"*/}
-                        {/*        />*/}
-                        {/*        <span className="ml-2 text-sm text-gray-600">{t('login.rememberMe')}</span>*/}
-                        {/*    </label>*/}
-                        {/*    <Link href="/forgot-password" className="text-sm text-green-600 hover:text-green-700 transition font-medium">*/}
-                        {/*        {t('login.forgotPassword')}*/}
-                        {/*    </Link>*/}
-                        {/*</div>*/}
+                        <div className="flex items-center justify-between">
+                            <label className="flex items-center cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={rememberMe}
+                                    onChange={(e) => setRememberMe(e.target.checked)}
+                                    className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                                />
+                                <span className="ml-2 text-sm text-gray-600">{t('login.rememberMe')}</span>
+                            </label>
+                            <Link href="/forgot-password" className="text-sm text-green-600 hover:text-green-700 transition font-medium">
+                                {t('login.forgotPassword')}
+                            </Link>
+                        </div>
 
                         <button
                             type="submit"

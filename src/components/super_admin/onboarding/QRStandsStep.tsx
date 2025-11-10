@@ -7,7 +7,8 @@ import {
     ArrowPathIcon,
     CheckCircleIcon,
     XMarkIcon,
-    TrashIcon
+    TrashIcon,
+    DocumentIcon
 } from '@heroicons/react/24/outline'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { env } from '@/lib/env'
@@ -51,13 +52,13 @@ async function apiRequest(url: string, options: RequestInit = {}) {
 }
 
 // API Functions for Sections and Tables
-async function createSection(restaurantId: number, name: string, design: string) {
+async function createSection(restaurantId: number, name: string, design: string, sectionPlanUrl?: string | null) {
     return apiRequest(`${API_BASE_URL}/super_admin/restaurants/${restaurantId}/sections`, {
         method: 'POST',
         body: JSON.stringify({
             name,
             design,
-            section_plan_url: null
+            section_plan_url: sectionPlanUrl || null
         })
     })
 }
@@ -96,13 +97,95 @@ async function checkDomainAvailability(restaurantId: number, domain: string) {
     })
 }
 
+// Upload floor plan for NEW sections (temp upload without section_id)
+async function uploadTempFloorPlan(restaurantId: number, file: File) {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token')
+
+    const response = await fetch(
+        `${API_BASE_URL}/super_admin/restaurants/${restaurantId}/sections/upload-floor-plan-temp`,
+        {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            body: formData
+        }
+    )
+
+    if (response.status === 401) {
+        localStorage.removeItem('auth_token')
+        sessionStorage.removeItem('auth_token')
+        if (typeof window !== 'undefined') {
+            window.location.href = '/login'
+        }
+        throw new Error('Unauthorized')
+    }
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.detail || `API Error: ${response.statusText}`)
+    }
+
+    return response.json()
+}
+
+// Upload floor plan for EXISTING sections (with section_id)
+async function uploadSectionFloorPlan(restaurantId: number, sectionId: number, file: File) {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token')
+
+    const response = await fetch(
+        `${API_BASE_URL}/super_admin/restaurants/${restaurantId}/sections/${sectionId}/upload-floor-plan`,
+        {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            body: formData
+        }
+    )
+
+    if (response.status === 401) {
+        localStorage.removeItem('auth_token')
+        sessionStorage.removeItem('auth_token')
+        if (typeof window !== 'undefined') {
+            window.location.href = '/login'
+        }
+        throw new Error('Unauthorized')
+    }
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.detail || `API Error: ${response.statusText}`)
+    }
+
+    return response.json()
+}
+
+// Delete floor plan from EXISTING section
+async function deleteSectionFloorPlan(restaurantId: number, sectionId: number) {
+    return apiRequest(
+        `${API_BASE_URL}/super_admin/restaurants/${restaurantId}/sections/${sectionId}/floor-plan`,
+        {
+            method: 'DELETE'
+        }
+    )
+}
+
 interface TableSection {
     id: number
     name: string
     tableCount: number
     tableNumbers: number[]
     selected_design: number
-    originalTableNumbers?: number[] // Оригінальні номери столів з бази (для існуючих секцій)
+    originalTableNumbers?: number[]
+    section_plan_url?: string | null
+    uploadingPlan?: boolean
 }
 
 interface QRStandsStepProps {
@@ -124,11 +207,12 @@ export default function QRStandsStep({
 
     // Внутренний стейт компонента
     const [tableSections, setTableSections] = useState<TableSection[]>([{
-        id: 1,
+        id: Date.now(),
         name: '',
         tableCount: 0,
         tableNumbers: [],
-        selected_design: 1
+        selected_design: 1,
+        section_plan_url: null
     }])
 
     const [qrStandData, setQrStandData] = useState({
@@ -169,49 +253,43 @@ export default function QRStandsStep({
             try {
                 setLoading(true)
 
-                // Загружаем секции и domain/notes параллельно
                 const [sections, domainNotesData] = await Promise.all([
                     getRestaurantSections(restaurantId),
                     getRestaurantDomainNotes(restaurantId)
                 ])
 
-                // Обрабатываем секции
                 if (sections && sections.length > 0) {
-                    // Преобразуем данные с бекенда в формат фронтенда
-                    // ВАЖНО: используем реальный id из базы данных для существующих секций
-                    // Новые секции будут иметь id = Date.now() (> 1000000000000)
                     const mappedSections = sections.map((section: any) => {
                         const tableNumbers = section.tables?.map((table: any) => table.table_number).sort((a: number, b: number) => a - b) || []
                         return {
-                            id: section.id, // Реальный ID из БД (маленькое число, например 1, 2, 3...)
+                            id: section.id,
                             name: section.name,
                             tableCount: tableNumbers.length,
-                            tableNumbers: [...tableNumbers], // Текущие номера столов
-                            originalTableNumbers: [...tableNumbers], // Сохраняем оригинальные для сравнения
-                            selected_design: designToNumber(section.design)
+                            tableNumbers: [...tableNumbers],
+                            originalTableNumbers: [...tableNumbers],
+                            selected_design: designToNumber(section.design),
+                            section_plan_url: section.section_plan_url || null
                         }
                     })
 
                     setTableSections(mappedSections)
                 } else {
-                    // Если нет секций, оставляем дефолтную пустую
                     setTableSections([{
                         id: Date.now(),
                         name: '',
                         tableCount: 0,
                         tableNumbers: [],
-                        selected_design: 1
+                        selected_design: 1,
+                        section_plan_url: null
                     }])
                 }
 
-                // Обрабатываем domain и notes
                 if (domainNotesData) {
                     setQrStandData({
                         domain: domainNotesData.domain || '',
                         notes: domainNotesData.notes || ''
                     })
 
-                    // Если domain уже есть, считаем его валидным (это домен этого ресторана)
                     if (domainNotesData.domain) {
                         setDomainStatus('available')
                         setDomainMessage('Domain is configured for this restaurant')
@@ -219,13 +297,13 @@ export default function QRStandsStep({
                 }
             } catch (err: any) {
                 console.error('Error loading sections:', err)
-                // При ошибке оставляем дефолтную пустую секцию
                 setTableSections([{
                     id: Date.now(),
                     name: '',
                     tableCount: 0,
                     tableNumbers: [],
-                    selected_design: 1
+                    selected_design: 1,
+                    section_plan_url: null
                 }])
             } finally {
                 setLoading(false)
@@ -238,16 +316,15 @@ export default function QRStandsStep({
     }, [restaurantId])
 
     const addTableSection = () => {
-        const newId = tableSections.length > 0
-            ? Math.max(...tableSections.map(s => s.id)) + 1
-            : Date.now()
+        const newId = Date.now()
 
         setTableSections([...tableSections, {
             id: newId,
             name: '',
             tableCount: 0,
             tableNumbers: [],
-            selected_design: 1
+            selected_design: 1,
+            section_plan_url: null
         }])
     }
 
@@ -304,6 +381,114 @@ export default function QRStandsStep({
         setTableSections(newSections)
     }
 
+    // Floor Plan Upload Handler
+    const handleFloorPlanUpload = async (sectionIndex: number, file: File) => {
+        const section = tableSections[sectionIndex]
+
+        // Валідація типу файлу
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf']
+        if (!allowedTypes.includes(file.type)) {
+            setError('Invalid file type. Please upload JPG, PNG, WEBP or PDF')
+            return
+        }
+
+        // Валідація розміру файлу (max 5MB)
+        const maxSize = 5 * 1024 * 1024
+        if (file.size > maxSize) {
+            setError(`File too large (${(file.size / (1024 * 1024)).toFixed(1)}MB). Maximum size is 5MB`)
+            return
+        }
+
+        try {
+            // Set uploading state
+            setTableSections(prevSections =>
+                prevSections.map((s, idx) =>
+                    idx === sectionIndex
+                        ? { ...s, uploadingPlan: true }  // Створюємо НОВИЙ об'єкт
+                        : s
+                )
+            )
+            setError(null)
+
+            // Перевіряємо чи це нова секція (id > 1000000000000) чи існуюча
+            const isNewSection = section.id > 1000000000000
+
+            let uploadedUrl: string
+
+            if (isNewSection) {
+                // Для НОВИХ секцій - загружаємо temp без section_id
+                const result = await uploadTempFloorPlan(restaurantId, file)
+                uploadedUrl = result.url
+                console.log('Temp floor plan uploaded:', uploadedUrl)
+            } else {
+                // Для ІСНУЮЧИХ секцій - загружаємо з section_id і відразу оновлюємо в БД
+                const result = await uploadSectionFloorPlan(restaurantId, section.id, file)
+                uploadedUrl = result.url
+                console.log('Floor plan uploaded for existing section:', uploadedUrl)
+            }
+
+            // Update with uploaded URL
+            setTableSections(prevSections =>
+                prevSections.map((s, idx) =>
+                    idx === sectionIndex
+                        ? { ...s, section_plan_url: uploadedUrl, uploadingPlan: false }  // Створюємо НОВИЙ об'єкт
+                        : s
+                )
+            )
+
+        } catch (err: any) {
+            console.error('Error uploading floor plan:', err)
+            setError(err.message || 'Failed to upload floor plan')
+
+            // Clear uploading state on error
+            setTableSections(prevSections =>
+                prevSections.map((s, idx) =>
+                    idx === sectionIndex
+                        ? { ...s, uploadingPlan: false }  // Створюємо НОВИЙ об'єкт
+                        : s
+                )
+            )
+        }
+    }
+
+    // Floor Plan Remove Handler
+    const handleFloorPlanRemove = async (sectionIndex: number) => {
+        const section = tableSections[sectionIndex]
+
+        try {
+            setError(null)
+
+            const isNewSection = section.id > 1000000000000
+
+            if (isNewSection) {
+                // Для нових секцій - просто очищаємо state
+                setTableSections(prevSections =>
+                    prevSections.map((s, idx) =>
+                        idx === sectionIndex
+                            ? { ...s, section_plan_url: null }  // Створюємо НОВИЙ об'єкт
+                            : s
+                    )
+                )
+            } else {
+                // Для існуючих секцій - викликаємо API для видалення
+                await deleteSectionFloorPlan(restaurantId, section.id)
+
+                setTableSections(prevSections =>
+                    prevSections.map((s, idx) =>
+                        idx === sectionIndex
+                            ? { ...s, section_plan_url: null }  // Створюємо НОВИЙ об'єкт
+                            : s
+                    )
+                )
+                console.log('Floor plan deleted for existing section')
+            }
+
+        } catch (err: any) {
+            console.error('Error removing floor plan:', err)
+            setError(err.message || 'Failed to remove floor plan')
+        }
+    }
+
     const handleCheckDomain = async () => {
         if (!qrStandData.domain.trim()) {
             setQrErrors({...qrErrors, domain: t('onboarding.qr.validation.enterDomain') || 'Please enter a domain'})
@@ -351,7 +536,6 @@ export default function QRStandsStep({
             hasErrors = true
         }
 
-        // Validate section names
         const sectionsWithTables = tableSections.filter(section => {
             const numbers = section.tableNumbers || []
             return numbers.filter(n => n > 0).length > 0
@@ -376,15 +560,14 @@ export default function QRStandsStep({
             setInternalSaving(true)
             setError(null)
 
-            // 1. СНАЧАЛА сохраняем domain и notes в ресторан
+            // 1. Зберігаємо domain і notes
             await updateRestaurantDomainNotes(
                 restaurantId,
                 qrStandData.domain,
                 qrStandData.notes || ''
             )
 
-            // 2. ПОТОМ обрабатываем секции и столы
-            // Фильтруем секции которые имеют хоть один стол
+            // 2. Обробляємо секції
             const sectionsToProcess = tableSections.filter(section => {
                 const validNumbers = (section.tableNumbers || []).filter(n => n > 0)
                 return validNumbers.length > 0 && section.name.trim()
@@ -394,7 +577,6 @@ export default function QRStandsStep({
                 throw new Error('No valid sections to create')
             }
 
-            // Маппинг selected_design на реальные названия дизайнов
             const designMap: { [key: number]: string } = {
                 1: 'Splitty Oak Display 4',
                 2: 'Splitty Steel Plate 1B',
@@ -402,25 +584,21 @@ export default function QRStandsStep({
                 4: 'design4'
             }
 
-            // Обрабатываем каждую секцию
             for (const section of sectionsToProcess) {
                 const designString = designMap[section.selected_design] || 'Splitty Oak Display 4'
                 const validTableNumbers = section.tableNumbers.filter(n => n > 0)
-
-                // Определяем это новая секция или существующая
-                // Новые секции имеют id = Date.now() (большое число > 1000000000000)
-                // Существующие секции имеют id из базы (маленькое число)
                 const isNewSection = section.id > 1000000000000
 
                 if (isNewSection) {
-                    // Создаем новую секцию
+                    // Створюємо нову секцію з section_plan_url (якщо є)
                     const createdSection = await createSection(
                         restaurantId,
                         section.name,
-                        designString
+                        designString,
+                        section.section_plan_url  // Передаємо URL який вже на Cloudinary
                     )
 
-                    // Создаем столы для новой секции
+                    // Створюємо столи
                     if (validTableNumbers.length > 0) {
                         await createTablesBatch(
                             restaurantId,
@@ -429,32 +607,23 @@ export default function QRStandsStep({
                         )
                     }
                 } else {
-                    // Существующая секция - обрабатываем только новые столы
+                    // Існуюча секція - тільки нові столи
                     const originalNumbers = section.originalTableNumbers || []
-
-                    // Находим столы которых не было раньше
                     const newTableNumbers = validTableNumbers.filter(
                         num => !originalNumbers.includes(num)
                     )
 
-                    // Создаем только новые столы
                     if (newTableNumbers.length > 0) {
                         await createTablesBatch(
                             restaurantId,
-                            section.id, // Используем реальный ID секции из БД
+                            section.id,
                             newTableNumbers
                         )
                         console.log(`Added ${newTableNumbers.length} new tables to section: ${section.name}`)
-                    } else {
-                        console.log(`No new tables for existing section: ${section.name}`)
                     }
-
-                    // TODO: Обработка удаленных столов (если tableNumber был удален из списка)
-                    // const deletedNumbers = originalNumbers.filter(num => !validTableNumbers.includes(num))
                 }
             }
 
-            // После успешного сохранения вызываем onNextStep из пропсов
             onNextStep()
 
         } catch (err: any) {
@@ -689,6 +858,92 @@ export default function QRStandsStep({
                                             >
                                                 <TrashIcon className="h-5 w-5" />
                                             </button>
+                                        )}
+                                    </div>
+
+                                    {/* Floor Plan Upload */}
+                                    <div className="mb-4">
+                                        <label className="block text-xs text-gray-600 mb-1.5">
+                                            {t('onboarding.qr.sections.floorPlan') || 'Floor Plan (Optional)'}
+                                        </label>
+
+                                        {!section.section_plan_url ? (
+                                            <div className="relative">
+                                                <input
+                                                    type="file"
+                                                    accept="image/jpeg,image/jpg,image/png,image/webp,application/pdf"
+                                                    onChange={(e) => {
+                                                        const file = e.target.files?.[0]
+                                                        if (file) {
+                                                            handleFloorPlanUpload(index, file)
+                                                        }
+                                                    }}
+                                                    disabled={section.uploadingPlan}
+                                                    className="hidden"
+                                                    id={`floor-plan-${section.id}`}
+                                                />
+                                                <label
+                                                    htmlFor={`floor-plan-${section.id}`}
+                                                    className={`flex items-center justify-center w-full px-4 py-3 border-2 border-dashed rounded-lg cursor-pointer transition ${
+                                                        section.uploadingPlan
+                                                            ? 'border-gray-300 bg-gray-50 cursor-not-allowed'
+                                                            : 'border-gray-300 hover:border-[#2BE89A] hover:bg-gray-50'
+                                                    }`}
+                                                >
+                                                    {section.uploadingPlan ? (
+                                                        <>
+                                                            <ArrowPathIcon className="h-5 w-5 text-gray-400 animate-spin mr-2" />
+                                                            <span className="text-sm text-gray-500">Uploading...</span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <svg className="h-5 w-5 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                                            </svg>
+                                                            <span className="text-sm text-gray-600">
+                                                                {t('onboarding.qr.sections.uploadFloorPlan') || 'Upload floor plan (JPG, PNG, PDF)'}
+                                                            </span>
+                                                        </>
+                                                    )}
+                                                </label>
+                                                <p className="text-xs text-gray-500 mt-1">
+                                                    Max 5MB • JPG, PNG, WEBP or PDF
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <div className="relative border border-gray-200 rounded-lg p-3 bg-gray-50">
+                                                <div className="flex items-start justify-between">
+                                                    <div className="flex items-center space-x-3 flex-1">
+                                                        {section.section_plan_url.toLowerCase().endsWith('.pdf') ? (
+                                                            <div className="w-12 h-12 bg-red-100 rounded flex items-center justify-center flex-shrink-0">
+                                                                <DocumentIcon className="h-6 w-6 text-red-600" />
+                                                            </div>
+                                                        ) : (
+                                                            <img
+                                                                src={section.section_plan_url}
+                                                                alt="Floor plan preview"
+                                                                className="w-12 h-12 object-cover rounded flex-shrink-0"
+                                                            />
+                                                        )}
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm font-medium text-gray-700 truncate">
+                                                                Floor plan uploaded
+                                                            </p>
+                                                            <p className="text-xs text-gray-500">
+                                                                Click remove to change
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleFloorPlanRemove(index)}
+                                                        className="ml-2 p-1.5 text-red-500 hover:bg-red-50 rounded transition flex-shrink-0"
+                                                        title="Remove floor plan"
+                                                    >
+                                                        <TrashIcon className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
                                         )}
                                     </div>
 

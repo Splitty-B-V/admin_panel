@@ -25,6 +25,7 @@ function getAuthHeaders() {
 interface SummaryStepProps {
     restaurantId: number
     restaurant?: any
+    progress?: any  // Added progress prop
     onComplete: () => void
     onSkip: () => void
     saving?: boolean
@@ -48,6 +49,7 @@ interface OnboardingItems {
 const SummaryStep: React.FC<SummaryStepProps> = ({
                                                      restaurantId,
                                                      restaurant,
+                                                     progress,  // Added progress
                                                      onComplete,
                                                      onSkip,
                                                      saving = false,
@@ -71,6 +73,19 @@ const SummaryStep: React.FC<SummaryStepProps> = ({
         tableNumbers: true,
         qrHolder: true
     })
+
+    // Calculate completed steps count (excluding summary step itself)
+    const completedStepsCount = progress ? [
+        progress.appointments_step,
+        progress.personnel_step,
+        progress.stripe_step,
+        progress.pos_step,
+        progress.qr_stands_step,
+        progress.google_reviews_step,
+        progress.telegram_step
+    ].filter(Boolean).length : 0
+
+    const canComplete = completedStepsCount >= 6
 
     // Get current date in Dutch format
     const getCurrentDate = () => {
@@ -583,43 +598,44 @@ const SummaryStep: React.FC<SummaryStepProps> = ({
             </div>
 
             {/* Action Buttons */}
-            <div className="flex justify-between items-center">
-                <button
-                    onClick={onSkip}
-                    disabled={saving || completing}
-                    className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
-                >
-                    {t('onboarding.common.skipStep')}
-                </button>
-
-                <button
-                    onClick={async () => {
-                        try {
-                            setCompleting(true)
-                            const response = await fetch(`${API_BASE_URL}/super_admin/restaurants/${restaurantId}/onboarding/finish`, {
-                                method: 'POST',
-                                headers: getAuthHeaders()
-                            })
-                            if (response.ok) {
-                                window.location.href = `/admin/restaurants/detail/${restaurantId}`
+            <div className="flex justify-end items-center">
+                <div className="flex flex-col items-end">
+                    <button
+                        onClick={async () => {
+                            try {
+                                setCompleting(true)
+                                const response = await fetch(`${API_BASE_URL}/super_admin/restaurants/${restaurantId}/onboarding/finish`, {
+                                    method: 'POST',
+                                    headers: getAuthHeaders()
+                                })
+                                if (response.ok) {
+                                    window.location.href = `/admin/restaurants/detail/${restaurantId}`
+                                }
+                            } catch (err) {
+                                console.error(err)
+                                setCompleting(false)
                             }
-                        } catch (err) {
-                            console.error(err)
-                            setCompleting(false)
-                        }
-                    }}
-                    disabled={saving || completing}
-                    className="px-8 py-3 bg-gradient-to-r from-[#2BE89A] to-[#4FFFB0] text-black font-semibold rounded-lg hover:opacity-90 transition disabled:opacity-50 flex items-center"
-                >
-                    {completing ? (
-                        <>
-                            <ArrowPathIcon className="h-5 w-5 mr-2 animate-spin" />
-                            {t('onboarding.common.complete')}
-                        </>
-                    ) : (
-                        t('onboarding.common.complete')
+                        }}
+                        disabled={!canComplete || saving || completing}
+                        className={`px-8 py-3 bg-gradient-to-r from-[#2BE89A] to-[#4FFFB0] text-black font-semibold rounded-lg transition flex items-center ${
+                            canComplete ? 'hover:opacity-90' : 'opacity-50 cursor-not-allowed'
+                        }`}
+                    >
+                        {completing ? (
+                            <>
+                                <ArrowPathIcon className="h-5 w-5 mr-2 animate-spin" />
+                                {t('onboarding.common.complete')}
+                            </>
+                        ) : (
+                            t('onboarding.common.complete')
+                        )}
+                    </button>
+                    {!canComplete && (
+                        <p className="text-xs text-gray-500 mt-1">
+                            {completedStepsCount}/6 steps completed
+                        </p>
                     )}
-                </button>
+                </div>
             </div>
         </div>
     )

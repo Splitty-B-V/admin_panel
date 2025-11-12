@@ -386,6 +386,7 @@ export default function SuperAdminOnboardingPage() {
                     <SummaryStep
                         restaurantId={restaurantId}
                         restaurant={restaurant}
+                        progress={progress}  // Pass progress here
                         onComplete={() => handleCompleteOnboarding()}
                         onSkip={() => handleSkipStep(8)}
                         saving={saving}

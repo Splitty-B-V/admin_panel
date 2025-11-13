@@ -209,7 +209,7 @@ const SuperAdminLayout: React.FC<LayoutProps> = ({ children }): React.ReactEleme
                             {!sidebarCollapsed ? (
                                 <>
                                     <Link href="/admin/dashboard" className="flex items-center flex-1">
-                                        <div className="w-12 h-12 rounded-xl overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 group-hover:border-blue-200 transition-all duration-200 shadow-sm flex items-center justify-center">
+                                        <div className="w-12 h-12 rounded-xl overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 group-hover:border-blue-200 transition-all duration-200 shadow-sm flex items-center justify-center flex-shrink-0">
                                             <Image
                                                 src="/images/favicon-splitty.png"
                                                 alt="Splitty Logo"
@@ -243,9 +243,9 @@ const SuperAdminLayout: React.FC<LayoutProps> = ({ children }): React.ReactEleme
                                     className="flex items-center justify-center w-full"
                                     title="Expand sidebar"
                                 >
-                                    <div className="w-12 h-12 rounded-xl overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 hover:border-blue-200 transition-all duration-200 shadow-sm flex items-center justify-center cursor-pointer">
+                                    <div className="w-12 h-12 min-w-[3rem] rounded-xl overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 hover:border-blue-200 transition-all duration-200 shadow-sm flex items-center justify-center cursor-pointer flex-shrink-0">
                                         <Image
-                                            src="/favicon-splitty.png"
+                                            src="/images/favicon-splitty.png"
                                             alt="Splitty Logo"
                                             width={32}
                                             height={32}
